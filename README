@@ -140,9 +140,9 @@ mutation.method 		= NNI, SPR and TRB Topological mutations are available
 mutation.probability 		= Probability to execute
 mutation.distributionindex 	= Distribution Index
 
-# ----------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
 #                                     Phylogenetic Parameters
-# ----------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
 
 alphabet	    		= DNA, RNA or Protein are available.
 input.sequence.file 		= The sequence file to use (sequences must be aligned!).
