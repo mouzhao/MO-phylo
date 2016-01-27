@@ -120,4 +120,21 @@ MainMOPhylogenetics_main: $(SRCDIR)/main/mophylogenetics.$(SRCEXT) $(LIB)
 	$(CC) $(CFLAGS) $(SRCDIR)/main/mophylogenetics.$(SRCEXT) $(MAIN_DEPS) -o $(BINDIR)/MOPhylogenetics $(INC) $(MAIN_LIBS)
 #cp $(BINDIR)/MOPhylogenetics test/MOPhylogenetics
 
+MOCHC: MOCHC_main
+
+MOCHC_main: $(SRCDIR)/main/MOCHC_main.$(SRCEXT) $(LIB)
+	@echo "Compiling  $(SRCDIR)/main/MOCHC.$(SRCEXT)"
+	@mkdir -p $(BINDIR)
+	$(CC) $(CFLAGS) $(SRCDIR)/main/MOCHC_main.$(SRCEXT) $(MAIN_DEPS) -o $(BINDIR)/MOCHC_main $(INC) $(MAIN_LIBS)
+#cp $(BINDIR)/MOPhylogenetics test/MOPhylogenetics
+
+PhyloMOCHC: PhyloMOCHC_main
+
+PhyloMOCHC_main: $(SRCDIR)/main/PhyloMOCHC_main.$(SRCEXT) $(LIB)
+	@echo "Compiling  $(SRCDIR)/main/PhyloMOCHC.$(SRCEXT)"
+	@mkdir -p $(BINDIR)
+	$(CC) $(CFLAGS) $(SRCDIR)/main/PhyloMOCHC_main.$(SRCEXT) $(MAIN_DEPS) -o $(BINDIR)/PhyloMOCHC_main $(INC) $(MAIN_LIBS)
+#cp $(BINDIR)/MOPhylogenetics test/MOPhylogenetics
+
+
 .PHONY: clean

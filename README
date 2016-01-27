@@ -44,7 +44,7 @@ unzip it.
 Then, run the install.sh with the following command:
   %sh install.sh
 
-It installs all the needed libraries: Bio++ (Bpp-Core, Bpp-Seq and Bpp-Phyl) and Pll.
+This install all the libraries needed: Bio++ (Bpp-Core, Bpp-Seq and Bpp-Phyl) and Pll.
 Add the path of the new libraries installed in your .bashrc file
 
 For Bio++:
@@ -140,9 +140,9 @@ mutation.method 		= NNI, SPR and TRB Topological mutations are available
 mutation.probability 		= Probability to execute
 mutation.distributionindex 	= Distribution Index
 
-# -------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
 #                                     Phylogenetic Parameters
-# -------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
 
 alphabet	    		= DNA, RNA or Protein are available.
 input.sequence.file 		= The sequence file to use (sequences must be aligned!).
@@ -262,5 +262,17 @@ The FUN file contains the data of the pareto front approximation and
 the VAR file contains the optimized phylogenetic trees in newick format.
 
 =======================================================================================
+
+
+7.- News
+=======================================================================================
+
+26-01-2016
+MOCHC Algorithm has been added
+Paramater bootstrapSize has been added
+
+=======================================================================================
+
+
 
 
