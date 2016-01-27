@@ -59,7 +59,7 @@ Variable **PhyloTreeSolutionType::createVariables(){
 	  Phylogeny * ph = (Phylogeny*)problem_;
 
 	  //if (ph->initialTrees =="user"){
-                if (ph->numarbol >= ph->bootstrapSize) {
+               if (ph->numarbol >= ph->bootstrapSize) {
 			cout << "Error: Impossible to get tree " << ph->numarbol<< " from BootStrap " << ph->bootstrapSize << endl;
                         exit(-1);
 		}

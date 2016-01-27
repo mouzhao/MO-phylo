@@ -305,7 +305,7 @@ void Phylogeny::readParameters(BppApplication *objApp){
     beta =   ApplicationTools::getDoubleParameter("rate_distribution.beta", objApp->getParams(), 0.5, "", false, false);
 
     //BootStrap Size mous to be equal to Population size
-    bootstrapSize = ApplicationTools::getIntParameter("populationsize", objApp->getParams(), 100, "", false, false);
+    bootstrapSize = ApplicationTools::getIntParameter("bootstrapSize", objApp->getParams(), 100, "", false, false);
     initialTrees = ApplicationTools::getStringParameter("init.population", objApp->getParams(), "stepwise", "", false, false);
     
     if(initialTrees=="user")
