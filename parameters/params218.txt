@@ -8,10 +8,11 @@ experimentid = 25
 DATA= /home/cristian/mo-phylogenetics/data
 
 
-# NSGAII,SMSEMOA,MOEAD,PAES
+# NSGAII,SMSEMOA,MOEAD,PAES,MOCHC
 algorithm = SMSEMOA
 populationsize = 100
 maxevaluations = 1500
+bootstrapSize	=101 
 
 #SMSEMOA
 offset = 100
@@ -22,6 +23,11 @@ datadirectory=""
 #PAES
 bisections=5
 archivesize=100
+
+#MOCHC
+initialconvergencecount=0.25
+preservedPopulation=0.05
+convergencevalue=3
 
 intervalupdateparameters = 100 #0 No aplica, cada 500 evaluations se actualizan Modelo y Newton
 

@@ -269,7 +269,8 @@ the VAR file contains the optimized phylogenetic trees in newick format.
 
 26-01-2016
 MOCHC Algorithm has been added
-Paramater bootstrapSize has been added
+Paramater bootstrapSize,initialconvergencecount,preservedPopulation and convergencevalue
+has been added
 
 =======================================================================================
 

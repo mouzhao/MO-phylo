@@ -39,8 +39,13 @@
 #include <Bpp/Phyl/TreeTemplateTools.h>
 #include <Bpp/Phyl/TreeTools.h>
 
+#include <Bpp/Phyl/BipartitionList.h>
+
 class PhyloMOCHC : public Algorithm {
 	bool equals(SolutionSet& set1, SolutionSet& set2);
+        bool exist(Solution & s1, SolutionSet & set2);
+        bool equalsIndividuals(Solution & s1, Solution & s2);
+        
 	int hammingDistance(Solution &sol1, Solution& sol2);
 	SolutionSet *rankingAndCrowdingSelection(SolutionSet *sol,int size);
 	int RFDistance(Solution *sol1, Solution *sol2);

@@ -49,6 +49,7 @@
 #include <SMSEMOA.h>
 #include <MOEAD.h>
 #include <paes.h>
+#include <PhyloMOCHC.h>
 
 
 using namespace std;
@@ -96,6 +97,9 @@ int main(int argc, char** argv) {
   int populationSize,maxEvaluations, biSections,archiveSize,IntervalOptSubsModel;
   double offset;
   string dataDirectory;
+  double initialConvergenceCount;
+  double preservedPopulation;
+  int convergenceValue;
   
    populationSize= ApplicationTools::getIntParameter("populationsize", objApp->getParams(), 100, "", false, false);
    maxEvaluations = ApplicationTools::getIntParameter("maxevaluations", objApp->getParams(), 2000, "", false, false);
@@ -122,6 +126,19 @@ int main(int argc, char** argv) {
         algorithm->setInputParameter("biSections",&biSections);
         algorithm->setInputParameter("archiveSize",&archiveSize);
       
+  }else if(AlgorithmName=="MOCHC"){
+
+      initialConvergenceCount = ApplicationTools::getDoubleParameter("initialconvergencecount", objApp->getParams(), 0.25, "", false, false);
+      preservedPopulation = ApplicationTools::getDoubleParameter("preservedPopulation", objApp->getParams(), 0.05, "", false, false);
+      convergenceValue = ApplicationTools::getIntParameter("convergencevalue", objApp->getParams(), 3, "", false, false);
+      
+      algorithm = new PhyloMOCHC(problem);
+        
+      algorithm->setInputParameter("initialConvergenceCount",&initialConvergenceCount);
+      algorithm->setInputParameter("preservedPopulation",&preservedPopulation);
+      algorithm->setInputParameter("convergenceValue",&convergenceValue);
+
+
   }else {
         algorithm = new NSGAII(problem);
   }
@@ -183,7 +200,12 @@ int main(int argc, char** argv) {
   }else if(AlgorithmName=="PAES"){
       cout << "biSections: " << biSections << endl;      
       cout << "archiveSize: " << archiveSize << endl;      
+  } else if(AlgorithmName=="MOCHC"){
+      cout << "initialConvergenceCount: " << initialConvergenceCount << endl;      
+      cout << "preservedPopulation: " << preservedPopulation << endl;  
+      cout << "convergenceValue: " << convergenceValue << endl;  
   }
+  
   cout << "maxEvaluations: " << maxEvaluations << endl << endl;
   
   
