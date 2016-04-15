@@ -2,6 +2,8 @@
 //
 //  Author:
 //       Esteban López-Camacho <esteban@lcc.uma.es>
+//       Some phylogenetic features were added by Cristian Zambrano-Vega
+//       <czambrano@uteq.edu.ec>
 //
 //  Copyright (c) 2011 Antonio J. Nebro, Juan J. Durillo
 //
@@ -20,7 +22,11 @@
 
 
 #include <ssNSGAII.h>
+#include <Bpp/App/BppApplication.h>
+#include <Bpp/App/ApplicationTools.h>
+#include <Phylogeny.h>
 
+using namespace bpp;
 
 /*
  * This class implements a steady-state version of NSGA-II.
@@ -45,6 +51,8 @@ SolutionSet * ssNSGAII::execute() {
   int populationSize;
   int maxEvaluations;
   int evaluations;
+  
+  int IntervalOptSubsModel;
 
   // TODO: QualityIndicator indicators; // QualityIndicator object
   int requiredEvaluations; // Use in the example of use of the
@@ -63,6 +71,7 @@ SolutionSet * ssNSGAII::execute() {
   //Read the parameters
   populationSize = *(int *) getInputParameter("populationSize");
   maxEvaluations = *(int *) getInputParameter("maxEvaluations");
+  IntervalOptSubsModel = *(int *) getInputParameter("intervalupdateparameters");
   // TODO: indicators = (QualityIndicator) getInputParameter("indicators");
 
   //Initialize the variables
@@ -76,16 +85,32 @@ SolutionSet * ssNSGAII::execute() {
   crossoverOperator = operators_["crossover"];
   selectionOperator = operators_["selection"];
   
+  ApplicationTools::displayTask("Initial Population", true);
+  
   // Create the initial solutionSet
   Solution * newSolution;
+  Phylogeny * p = (Phylogeny *) problem_;
+  
+  
   for (int i = 0; i < populationSize; i++) {
     newSolution = new Solution(problem_);
+    
+    if(p->StartingOptRamas){
+        p->BranchLengthOptimization(newSolution,p->StartingMetodoOptRamas,p->StartingNumIterOptRamas,p->StartingTolerenciaOptRamas);
+    }
+    
+    if(p->OptimizacionSubstModel)
+        p->OptimizarParamModeloSust(newSolution);
+       
+    
     problem_->evaluate(newSolution);
     problem_->evaluateConstraints(newSolution);
     evaluations++;
     population->add(newSolution);
   } //for
-  
+   ApplicationTools::displayTaskDone();
+   
+   
   // Generations
   while (evaluations < maxEvaluations) {
     
@@ -93,6 +118,11 @@ SolutionSet * ssNSGAII::execute() {
     offspringPopulation = new SolutionSet(populationSize);
     Solution ** parents = new Solution*[2];
     
+     if(evaluations%100==0){ 
+         cout << "Evaluating  " <<  evaluations << endl;
+     }
+     
+     
     //obtain parents
     parents[0] = (Solution *) (selectionOperator->execute(population));
     parents[1] = (Solution *) (selectionOperator->execute(population));
@@ -103,9 +133,11 @@ SolutionSet * ssNSGAII::execute() {
     // mutation
     mutationOperator->execute(offSpring[0]);
     
+    ((Phylogeny *)problem_)->Optimization(offSpring[0]); //Optimize and update the scores (Evaluate OffSpring)
+    
     // evaluation
-    problem_->evaluate(offSpring[0]);
-    problem_->evaluateConstraints(offSpring[0]);
+    //problem_->evaluate(offSpring[0]);
+    //problem_->evaluateConstraints(offSpring[0]);
     
     // insert child into the offspring population
     offspringPopulation->add(offSpring[0]);
@@ -166,6 +198,19 @@ SolutionSet * ssNSGAII::execute() {
     delete ranking;
     delete unionSolution;
 
+       //Update Interval
+    if(evaluations%IntervalOptSubsModel==0 and IntervalOptSubsModel > 0){ 
+        Solution * sol;  double Lk;
+        Phylogeny * p = (Phylogeny*) problem_;
+        //cout << "Updating and Optimizing Parameters.." << endl;
+        for(int i=0; i<population->size(); i++){
+            sol =  population->get(i);
+            Lk=  p->BranchLengthOptimization(sol,p->OptimizationMetodoOptRamas,p->OptimizationNumIterOptRamas,p->OptimizationTolerenciaOptRamas);
+            sol->setObjective(1,Lk*-1);
+        }
+        //cout << "Update Interval Done!!" << endl;
+    }
+    
     // This piece of code shows how to use the indicator object into the code
     // of NSGA-II. In particular, it finds the number of evaluations required
     // by the algorithm to obtain a Pareto front with a hypervolume higher

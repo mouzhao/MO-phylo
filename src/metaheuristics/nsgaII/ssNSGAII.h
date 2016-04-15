@@ -2,6 +2,8 @@
 //
 //  Author:
 //       Esteban López-Camacho <esteban@lcc.uma.es>
+//       Some phylogenetic features were added by Cristian Zambrano-Vega
+//       <czambrano@uteq.edu.ec>
 //
 //  Copyright (c) 2011 Antonio J. Nebro, Juan J. Durillo
 //

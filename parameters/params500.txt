@@ -6,7 +6,7 @@ experimentid = 25
 
 DATA= $(HOME)/mo-phylogenetics/data
 
-# NSGAII,SMSEMOA,MOEAD,PAES,MOCHC
+# NSGAII,SMSEMOA,MOEAD,PAES,MOCHC,ssNSGAII
 algorithm = NSGAII
 populationsize = 100
 maxevaluations = 400

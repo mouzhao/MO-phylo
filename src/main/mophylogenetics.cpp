@@ -46,6 +46,7 @@
 
 
 #include <NSGAII.h>
+#include <ssNSGAII.h>
 #include <SMSEMOA.h>
 #include <MOEAD.h>
 #include <paes.h>
@@ -60,7 +61,7 @@ void Message()
 {
   (*ApplicationTools::message <<"* Multi-Objective Phylogenetic Inference Software, jMetalC++ & Bio++ & PLL*").endLine();
   (*ApplicationTools::message  <<"*                                                                        *").endLine();
-  (*ApplicationTools::message <<"* Authors:                                             Last Modif. 27/08/15*").endLine();
+  (*ApplicationTools::message <<"* Authors:                                             Last Modif. 13/04/16*").endLine();
   (*ApplicationTools::message <<"* Cristian Zambrano-Vega                                                  *").endLine();
   (*ApplicationTools::message <<"* Antonio J. Nebro                                                        *").endLine();
   (*ApplicationTools::message <<"***************************************************************************").endLine();
@@ -107,6 +108,9 @@ int main(int argc, char** argv) {
   
   if(AlgorithmName=="NSGAII"){
         algorithm = new NSGAII(problem);
+  
+  }else if(AlgorithmName=="ssNSGAII"){
+        algorithm = new ssNSGAII(problem);
   
   }else if(AlgorithmName=="SMSEMOA"){
         offset = ApplicationTools::getDoubleParameter("offset", objApp->getParams(), 100, "", false, false);

@@ -8,7 +8,7 @@ experimentid = 25
 DATA= /home/cristian/mo-phylogenetics/data
 
 
-# NSGAII,SMSEMOA,MOEAD,PAES,MOCHC
+# NSGAII,SMSEMOA,MOEAD,PAES,MOCHC,ssNSGAII
 algorithm = SMSEMOA
 populationsize = 100
 maxevaluations = 1500

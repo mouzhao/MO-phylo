@@ -6,7 +6,7 @@ experimentid = 25
 
 DATAPATH    = /home/cristian/mo-phylogenetics/data
 
-# NSGAII,SMSEMOA,MOEAD,PAES,MOCHC
+# NSGAII,SMSEMOA,MOEAD,PAES,MOCHC,ssNSGAII
 algorithm = MOCHC
 populationsize = 100
 maxevaluations = 1500
