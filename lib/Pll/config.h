@@ -5,16 +5,16 @@
 #define HAVE_ATEXIT 1
 
 /* Support AVX (Advanced Vector Extensions) instructions */
-#define HAVE_AVX /**/
+/* #undef HAVE_AVX */
 
 /* Define to 1 if you have the `clock_gettime' function. */
-/* #undef HAVE_CLOCK_GETTIME */
+#define HAVE_CLOCK_GETTIME 1
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the <emmintrin.h> header file. */
-/* #undef HAVE_EMMINTRIN_H */
+#define HAVE_EMMINTRIN_H 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
@@ -63,10 +63,10 @@
 #define HAVE_MMAP 1
 
 /* Define to 1 if you have the <mmintrin.h> header file. */
-/* #undef HAVE_MMINTRIN_H */
+#define HAVE_MMINTRIN_H 1
 
 /* Support MMX instructions */
-/* #undef HAVE_MMX */
+#define HAVE_MMX /**/
 
 /* Define to 1 if you have the `munmap' function. */
 #define HAVE_MUNMAP 1
@@ -94,10 +94,10 @@
 #define HAVE_SQRT 1
 
 /* Support SSE (Streaming SIMD Extensions) instructions */
-/* #undef HAVE_SSE */
+#define HAVE_SSE /**/
 
 /* Support SSE2 (Streaming SIMD Extensions 2) instructions */
-/* #undef HAVE_SSE2 */
+#define HAVE_SSE2 /**/
 
 /* Support SSE3 (Streaming SIMD Extensions 3) instructions */
 /* #undef HAVE_SSE3 */
@@ -163,7 +163,7 @@
 #define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the <xmmintrin.h> header file. */
-/* #undef HAVE_XMMINTRIN_H */
+#define HAVE_XMMINTRIN_H 1
 
 /* Define to 1 if the system has the type `_Bool'. */
 #define HAVE__BOOL 1
@@ -185,7 +185,7 @@
 #define PACKAGE_NAME "libpll"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "libpll 1.0.0"
+#define PACKAGE_STRING "libpll 1.0.11"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libpll"
@@ -194,13 +194,13 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.0.0"
+#define PACKAGE_VERSION "1.0.11"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "1.0.0"
+#define VERSION "1.0.11"
 
 /* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the

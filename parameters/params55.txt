@@ -4,7 +4,7 @@
 #Experimennt ID
 experimentid = 25
 
-DATAPATH    = $(HOME)/mo-phylogenetics/data
+DATAPATH    = /root/mz/MO-Phylogenetics/data
 
 # NSGAII,SMSEMOA,MOEAD,PAES,MOCHC,ssNSGAII
 algorithm = NSGAII
@@ -61,7 +61,7 @@ mutation.distributionindex = 1
 alphabet=DNA 
 
 # The sequence file to use (sequences must be aligned!)
-input.sequence.file= $(DATAPATH)/sequences/55.txt
+input.sequence.file= $(DATAPATH)/sequences/55com.txt
 
 # The alignment format:  order=sequential/interleaved type=extended/classic
 input.sequence.format=Phylip(order=sequential, type=extended, split=spaces)
@@ -83,7 +83,7 @@ partitionmodelfilepll = $(DATAPATH)/model/55.model
 # *********** Initial Population Trees ***********
 
 # user, random or stepwise
-init.population = user
+init.population = stepwise
 init.population.tree.file = $(DATAPATH)/inputusertrees/bootstrap1000_55
 init.population.tree.format = Newick
 
@@ -126,7 +126,7 @@ optimization.pll.maxtranv = 20
 optimization.pll.newton3sprbranch = true
 
 # ********** Branch Lenght Optimization ***********
-bl_optimization.starting = true
+bl_optimization.starting = false
 bl_optimization.starting.method=newton #gradient
 bl_optimization.starting.maxitevaluation=1000
 bl_optimization.starting.tolerance = 0.001

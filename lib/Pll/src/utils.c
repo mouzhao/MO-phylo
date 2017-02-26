@@ -97,11 +97,11 @@ static const char PLL_MAP_BIN[256] =
 
 static const char PLL_MAP_NT[256] =
  {
-   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 
-   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 
-   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 15, -1, -1, 
-   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 15, 
-   -1,  1, 14,  2, 13, -1, -1,  4, 11, -1, -1, 12, -1,  3, 15, 15, 
+   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 15, -1, -1,
+   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 15,
+   -1,  1, 14,  2, 13, -1, -1,  4, 11, -1, -1, 12, -1,  3, 15, 15,
    -1, -1,  5,  6,  8,  8,  7,  9, 15, 10, -1, -1, -1, -1, -1, -1,
    -1,  1, 14,  2, 13, -1, -1,  4, 11, -1, -1, 12, -1,  3, 15, 15,
    -1, -1,  5,  6,  8,  8,  7,  9, 15, 10, -1, -1, -1, -1, -1, -1,
@@ -536,7 +536,7 @@ void computeAllAncestralVectors(nodeptr p, pllInstance *tr, partitionList *pr)
       
       /* then compute the ancestral state at node p */
 
-      pllUpdatePartialsAncestral(tr, pr, p);
+      pllUpdatePartialsAncestral(tr, pr, p, PLL_FALSE);
 
       /* and print it to terminal, the two booleans that are set to PLL_TRUE here 
          tell the function to print the marginal probabilities as well as 
@@ -591,7 +591,6 @@ void initializePartitionData(pllInstance *localTree, partitionList * localPartit
       localPartitions->partitionData[model]->EIGN              = (double*)rax_malloc((size_t)pl->eignLength * sizeof(double));
       rax_posix_memalign ((void **)&(localPartitions->partitionData[model]->EV),    PLL_BYTE_ALIGNMENT, (size_t)pl->evLength * sizeof(double));
       localPartitions->partitionData[model]->EI                = (double*)rax_malloc((size_t)pl->eiLength * sizeof(double));
-
       localPartitions->partitionData[model]->substRates        = (double *)rax_malloc((size_t)pl->substRatesLength * sizeof(double));
       localPartitions->partitionData[model]->frequencies       = (double*)rax_malloc((size_t)pl->frequenciesLength * sizeof(double));
       localPartitions->partitionData[model]->freqExponents     = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
@@ -599,7 +598,8 @@ void initializePartitionData(pllInstance *localTree, partitionList * localPartit
       rax_posix_memalign ((void **)&(localPartitions->partitionData[model]->tipVector), PLL_BYTE_ALIGNMENT, (size_t)pl->tipVectorLength * sizeof(double));
       //localPartitions->partitionData[model]->partitionName      = NULL;   // very imporatant since it is deallocated in pllPartitionDestroy
       
-       if(localPartitions->partitionData[model]->dataType == PLL_AA_DATA && localPartitions->partitionData[model]->protModels == PLL_LG4)      
+       if(localPartitions->partitionData[model]->dataType == PLL_AA_DATA
+               && (localPartitions->partitionData[model]->protModels == PLL_LG4M || localPartitions->partitionData[model]->protModels == PLL_LG4X))
         {
           int 
             k;
@@ -607,6 +607,7 @@ void initializePartitionData(pllInstance *localTree, partitionList * localPartit
           for(k = 0; k < 4; k++)
             {       
               localPartitions->partitionData[model]->EIGN_LG4[k]              = (double*)rax_malloc(pl->eignLength * sizeof(double));
+              localPartitions->partitionData[model]->rawEIGN_LG4[k]              = (double*)rax_malloc(pl->eignLength * sizeof(double));
               rax_posix_memalign ((void **)&(localPartitions->partitionData[model]->EV_LG4[k]), PLL_BYTE_ALIGNMENT, pl->evLength * sizeof(double));
               localPartitions->partitionData[model]->EI_LG4[k]                = (double*)rax_malloc(pl->eiLength * sizeof(double));
               localPartitions->partitionData[model]->substRates_LG4[k]        = (double *)rax_malloc(pl->substRatesLength * sizeof(double));
@@ -813,6 +814,9 @@ void initMemorySavingAndRecom(pllInstance *tr, partitionList *pr)
     @param tr
       PLL instance
 
+    @param pr
+	  PLL partitionlist
+
     @param p
       Specifies one end-point of the branch. The other one is \a p->back
 
@@ -822,16 +826,16 @@ void initMemorySavingAndRecom(pllInstance *tr, partitionList *pr)
     @return
       The branch length
 */
-double pllGetBranchLength (pllInstance *tr, nodeptr p, int partition_id)
+double pllGetBranchLength (pllInstance *tr, partitionList * pr, nodeptr p, int partition_id)
 {
-  //assert(partition_id < tr->numBranches);
+  double z;
   assert(partition_id < PLL_NUM_BRANCHES);
   assert(partition_id >= 0);
-  assert(tr->fracchange != -1.0);
-  double z = p->z[partition_id];
+
+  z = p->z[partition_id];
   if(z < PLL_ZMIN) z = PLL_ZMIN;
   if(z > PLL_ZMAX) z = PLL_ZMAX;
-  return (-log(z) * tr->fracchange);
+  return -log(z);
 }
 
 /** @brief Set the length of a specific branch
@@ -843,6 +847,9 @@ double pllGetBranchLength (pllInstance *tr, nodeptr p, int partition_id)
     @param tr
       PLL instance
 
+    @param pr
+	  PLL partitionlist
+
     @param p
       Specifies one end-point of the branch. The other one is \a p->back
 
@@ -852,17 +859,19 @@ double pllGetBranchLength (pllInstance *tr, nodeptr p, int partition_id)
     @param bl
       Branch length
 */
-void pllSetBranchLength (pllInstance *tr, nodeptr p, int partition_id, double bl)
+void pllSetBranchLength (pllInstance *tr, partitionList *pr, nodeptr p, int partition_id, double bl)
 {
+  double z;
   //assert(partition_id < tr->numBranches);
   assert(partition_id < PLL_NUM_BRANCHES);
   assert(partition_id >= 0);
-  assert(tr->fracchange != -1.0);
-  double z;
-  z = exp((-1 * bl)/tr->fracchange);
+
+  z = exp(-1 * bl);
+
   if(z < PLL_ZMIN) z = PLL_ZMIN;
   if(z > PLL_ZMAX) z = PLL_ZMAX;
   p->z[partition_id] = z;
+  p->back->z[partition_id] = z;
 }
 
 #if (!defined(_FINE_GRAIN_MPI) && !defined(_USE_PTHREADS))
@@ -977,6 +986,25 @@ if (MASTER_P) {
      rax_free (pl->partitionData[i]->empiricalFrequencies);
      rax_free (pl->partitionData[i]->tipVector);
      rax_free (pl->partitionData[i]->symmetryVector);
+
+     if (pl->partitionData[i]->dataType == PLL_AA_DATA
+          && (pl->partitionData[i]->protModels == PLL_LG4M
+              || pl->partitionData[i]->protModels == PLL_LG4X))
+        {
+          int k;
+
+          for (k = 0; k < 4; k++)
+            {
+              rax_free (pl->partitionData[i]->EIGN_LG4[k]);
+              rax_free (pl->partitionData[i]->rawEIGN_LG4[k]);
+              rax_free (pl->partitionData[i]->EV_LG4[k]);
+              rax_free (pl->partitionData[i]->EI_LG4[k]);
+              rax_free (pl->partitionData[i]->substRates_LG4[k]);
+              rax_free (pl->partitionData[i]->frequencies_LG4[k]);
+              rax_free (pl->partitionData[i]->tipVector_LG4[k]);
+            }
+        }
+
      rax_free (pl->partitionData[i]->frequencyGrouping);
      for (j = 0; j < tips; ++ j)
        rax_free (pl->partitionData[i]->xVector[j]);
@@ -1137,7 +1165,8 @@ static partitionList * createPartitions (pllQueue * parts, int * bounds)
   partitionList * pl;
   pllPartitionInfo * pi;
   struct pllQueueItem * elm;
-  int i, j;
+  int i, j, nparts = 0;
+  double wgtSum = 0.0;
 
   pl = (partitionList *) rax_malloc (sizeof (partitionList));
   
@@ -1170,6 +1199,8 @@ static partitionList * createPartitions (pllQueue * parts, int * bounds)
      pl->partitionData[i]->lower = bounds[i << 1];
      pl->partitionData[i]->upper = bounds[(i << 1) + 1];
      pl->partitionData[i]->width = bounds[(i << 1) + 1] - bounds[i << 1];
+     pl->partitionData[i]->partitionWeight = 1.0 * (double) pl->partitionData[i]->width;
+     wgtSum += pl->partitionData[i]->partitionWeight;
 
      //the two flags below are required to allow users to set 
      //alpha parameters and substitution rates in the Q matrix 
@@ -1188,8 +1219,6 @@ static partitionList * createPartitions (pllQueue * parts, int * bounds)
      pl->partitionData[i]->ascBias                   = pi->ascBias;
      pl->partitionData[i]->parsVect                  = NULL;
 
-
-
      if (pi->dataType == PLL_AA_DATA)
       {
         if(pl->partitionData[i]->protModels != PLL_GTR)
@@ -1204,13 +1233,18 @@ static partitionList * createPartitions (pllQueue * parts, int * bounds)
      pl->partitionData[i]->nonGTR                =        PLL_FALSE;
      pl->partitionData[i]->partitionContribution =     -1.0;
      pl->partitionData[i]->partitionLH           =      0.0;
-     pl->partitionData[i]->fracchange            =      1.0;
      pl->partitionData[i]->executeModel          =     PLL_TRUE;
 
 
      pl->partitionData[i]->partitionName         = (char *) rax_malloc ((strlen (pi->partitionName) + 1) * sizeof (char));
      strcpy (pl->partitionData[i]->partitionName, pi->partitionName);
+     nparts++;
    }
+
+  for (i=0; i<nparts; i++)
+    {
+      pl->partitionData[i]->partitionContribution = pl->partitionData[i]->partitionWeight / wgtSum;
+    }
 
   return (pl);
 }
@@ -1897,6 +1931,10 @@ pllInstance * pllCreateInstance (pllInstanceAttr * attr)
 
   if (attr->rateHetModel != PLL_GAMMA && attr->rateHetModel != PLL_CAT) return NULL;
 
+#ifdef _USE_PTHREADS
+  if (attr->numberOfThreads <= 0) return NULL;
+#endif
+
   tr = (pllInstance *) rax_calloc (1, sizeof (pllInstance));
 
   tr->threadID          = 0;
@@ -1961,13 +1999,12 @@ static void pllTreeInitDefaults (pllInstance * tr, int tips)
 
   tr->nameList         = (char **)   rax_malloc ((tips + 1) * sizeof (char *));
   tr->nodep            = (nodeptr *) rax_malloc ((2 * tips) * sizeof (nodeptr));
+
+  tr->autoProteinSelectionType = PLL_AUTO_ML;
+
   assert (tr->nameList && tr->nodep);
 
   tr->nodep[0] = NULL;          
-
-
-  /* TODO: FIX THIS! */
-  //tr->fracchange = -1;
 
   for (i = 1; i <= tips; ++ i)
    {
@@ -2069,46 +2106,6 @@ checkTreeInclusion (pllInstance * pInst, pllNewickTree * nTree)
   return (PLL_TRUE);
 }
 
-static void
-updateBranchLength (nodeptr p, double old_fracchange, double new_fracchange)
-{
-  double z;
-  int j;
-
-  for (j = 0; j < PLL_NUM_BRANCHES; ++ j)
-   {
-     z = exp ((log (p->z[j]) * old_fracchange) / new_fracchange);
-     if (z < PLL_ZMIN) z = PLL_ZMIN;
-     if (z > PLL_ZMAX) z = PLL_ZMAX;
-     p->z[j] = p->back->z[j] = z;
-   }
-}
-
-static void
-updateAllBranchLengthsRecursive (nodeptr p, int tips, double old_fracchange, double new_fracchange)
-{
-  updateBranchLength (p, old_fracchange, new_fracchange);
-
-  if (!isTip (p->number, tips))
-   {
-     updateAllBranchLengthsRecursive (p->next->back,       tips, old_fracchange, new_fracchange);
-     updateAllBranchLengthsRecursive (p->next->next->back, tips, old_fracchange, new_fracchange);
-   }
-}
-
-static void
-updateAllBranchLengths (pllInstance * tr, double old_fracchange, double new_fracchange)
-{
-  nodeptr p;
-
-  p = tr->start;
-  assert (isTip(p->number, tr->mxtips));
-
-  updateAllBranchLengthsRecursive (p->back, tr->mxtips, old_fracchange, new_fracchange);
-
-}
-
-
 /** @brief Relink the taxa
     
     Relink the taxa by performing a preorder traversal of the unrooted binary tree.
@@ -2185,10 +2182,8 @@ linkTaxa (pllInstance * pInst, pllNewickTree * nTree, int taxaExist)
      parent->back = child;
      child->back  = parent;
 
-     if (!taxaExist) pInst->fracchange = 1;
-
      /* set the branch length */
-     z = exp ((-1 * atof (nodeInfo->branch)) / pInst->fracchange);
+     z = exp (-1 * atof (nodeInfo->branch));
      if (z < PLL_ZMIN) z = PLL_ZMIN;
      if (z > PLL_ZMAX) z = PLL_ZMAX;
      for (j = 0; j < PLL_NUM_BRANCHES; ++ j)
@@ -2907,7 +2902,6 @@ void pllSetFixedAlpha(double alpha, int model, partitionList * pr, pllInstance *
 {
   //make sure that we are swetting alpha for a partition within the current range 
   //of partitions
-  double old_fracchange = tr->fracchange;
 
   assert(model >= 0 && model < pr->numberOfPartitions);
 
@@ -2930,7 +2924,6 @@ void pllSetFixedAlpha(double alpha, int model, partitionList * pr, pllInstance *
   pr->partitionData[model]->optimizeAlphaParameter = PLL_FALSE;
 
   pr->dirty = PLL_FALSE;
-  updateAllBranchLengths (tr, old_fracchange, tr->fracchange);
 }
 
 /** @ingroup modelParamsGroups
@@ -3018,10 +3011,7 @@ void pllSetFixedBaseFrequencies(double *f, int length, int model, partitionList 
     i;
 
   double 
-    acc = 0.0,
-    old_fracchange;
-
-  old_fracchange = tr->fracchange;
+    acc = 0.0;
 
   //make sure that we are setting the base frequencies for a partition within the current range 
   //of partitions
@@ -3055,7 +3045,6 @@ void pllSetFixedBaseFrequencies(double *f, int length, int model, partitionList 
   pr->partitionData[model]->optimizeBaseFrequencies = PLL_FALSE;
 
   pr->dirty = PLL_TRUE;
-  updateAllBranchLengths (tr, old_fracchange, tr->fracchange);
 }
 
 /** @ingroup modelParamsGroups
@@ -3221,10 +3210,7 @@ void pllSetSubstitutionMatrix(double *q, int length, int model, partitionList * 
     numberOfRates; 
 
   double
-    scaler,
-    old_fracchange;
-
-  old_fracchange = tr->fracchange;
+    scaler;
 
   //make sure that we are setting the Q matrix for a partition within the current range 
   //of partitions
@@ -3266,7 +3252,6 @@ void pllSetSubstitutionMatrix(double *q, int length, int model, partitionList * 
   
 
   pr->dirty = PLL_TRUE;
-  updateAllBranchLengths (tr, old_fracchange, tr->fracchange);
 }
 
 
@@ -3515,7 +3500,6 @@ int pllInitModel (pllInstance * tr, partitionList * partitions)
   int
     i,
     *unlinked = (int *)rax_malloc(sizeof(int) * partitions->numberOfPartitions);
-  double old_fracchange = tr->fracchange;
 
   ef = pllBaseFrequenciesInstance (tr, partitions);
 
@@ -3566,13 +3550,11 @@ int pllInitModel (pllInstance * tr, partitionList * partitions)
      allocate the required data structures for storing likelihood vectors etc 
      */
 
-  //initializePartitions(tr, tr, partitions, partitions, 0, 0);
   initializePartitionsSequential (tr, partitions);
 #endif
   
-  //initializePartitions (tr, tr, partitions, partitions, 0, 0);
-  
   initModel (tr, ef, partitions);
+
   pllEmpiricalFrequenciesDestroy (&ef, partitions->numberOfPartitions);
 
   for(i = 0; i < partitions->numberOfPartitions; i++)
@@ -3585,7 +3567,6 @@ int pllInitModel (pllInstance * tr, partitionList * partitions)
 
   rax_free(unlinked);
 
-  updateAllBranchLengths (tr, old_fracchange ? old_fracchange : 1,  tr->fracchange);
   pllEvaluateLikelihood (tr, partitions, tr->start, PLL_TRUE, PLL_FALSE);
 
   return PLL_TRUE;
@@ -3608,12 +3589,24 @@ int pllInitModel (pllInstance * tr, partitionList * partitions)
 */
 int pllOptimizeModelParameters(pllInstance *tr, partitionList *pr, double likelihoodEpsilon)
 {
+  int i;
+
   //force the consistency check
-
   pr->dirty = PLL_TRUE;
-
   if(!checkLinkageConsistency(pr))
     return PLL_FALSE;
+
+  if (tr->rateHetModel == PLL_CAT)
+    {
+      // assign the maximum number of categories
+      for (i=0; i<pr->numberOfPartitions; i++)
+        {
+          if (pr->partitionData[i]->numberOfCategories > tr->categories)
+            {
+              tr->categories = pr->partitionData[i]->numberOfCategories;
+            }
+        }
+    }
 
   modOpt(tr, pr, likelihoodEpsilon);
 
@@ -3711,3 +3704,384 @@ node ** pllGetInnerBranchEndPoints (pllInstance * tr)
   return nodes;
 }
 
+static void getSubtreeNodesRecursive (nodeptr p, int tips, int * i, node **nodes)
+{
+  nodes[(*i)++] = p;
+  if (!isTip (p->number, tips))
+   {
+     getSubtreeNodesRecursive(p->next->back, tips, i, nodes);
+     getSubtreeNodesRecursive(p->next->next->back, tips, i, nodes);
+   }
+}
+
+/**
+ * @brief Gets the list of nodes in a subtree rooted at p
+ *
+ * @param[in] tr, the tree
+ * @param[in] p, the node rooting the subtree
+ * @param[out] numberOfNodes, the number of nodes in the subtree (i.e., size of the result nodes array)
+ *
+ * @return The list of nodes in the subtree rooted at p, in preorder.
+ */
+node ** getSubtreeNodes (pllInstance * tr, nodeptr p, int * numberOfNodes)
+{
+  node ** nodes;
+  int i = 0;
+
+  nodes = (node **) rax_calloc((size_t)tr->mxtips*2 - 2, sizeof(node *));
+
+  getSubtreeNodesRecursive(p, tr->mxtips, &i, nodes);
+
+  assert(i <= 2*tr->mxtips - 2);
+  nodes = (node **) rax_realloc(nodes, (size_t)i * sizeof(double));
+
+  *numberOfNodes = i;
+
+  return nodes;
+}
+
+/* TBR OPERATIONS */
+
+/**
+ * @brief Creates a bisection in the tree in the branch defined by the node p
+ *
+ * Splits the tree in two subtrees by removing the branch b(p<->p.back).
+ *
+ * @param tr, the tree
+ * @param pr, the partitions
+ * @param p, the node defining the branch to remove
+ *
+ * @return PLL_TRUE if OK, PLL_FALSE and sets errno in case of error
+ */
+int
+pllTbrRemoveBranch (pllInstance * tr, partitionList * pr, nodeptr p)
+{
+  int i;
+  nodeptr p1, p2, q1, q2;
+  nodeptr tmpNode;
+  double * nextZP, * nextZQ;
+  int numBranchLengths;
+
+  // Evaluate pre-conditions
+  // P1 : ( p in tr )
+  for (tmpNode = tr->start->next->back; tmpNode != tr->start && tmpNode != p;
+      tmpNode = tmpNode->next->back)
+    ;
+  if(tmpNode != p) {
+      errno = PLL_TBR_INVALID_NODE;
+      return PLL_FALSE;
+  }
+  // P2 : ( p is an inner branch )
+  if (!(p->number > tr->mxtips && p->back->number > tr->mxtips))
+  {
+      errno = PLL_TBR_NOT_INNER_BRANCH;
+      return PLL_FALSE;
+  }
+
+  p1 = p->next->back;
+  p2 = p->next->next->back;
+  q1 = p->back->next->back;
+  q2 = p->back->next->next->back;
+
+  // Connect p neighbors (sum branches)
+  numBranchLengths = pr->perGeneBranchLengths ? pr->numberOfPartitions : 1;
+  nextZP = (double *) rax_malloc ( (size_t) numBranchLengths * sizeof(double));
+  if (!nextZP) {
+      return PLL_FALSE;
+  }
+  nextZQ = (double *) rax_malloc ( (size_t) numBranchLengths * sizeof(double));
+  if (!nextZQ) {
+      free(nextZP);
+      return PLL_FALSE;
+  }
+
+  for (i = 0; i < numBranchLengths; i++)
+  {
+      nextZP[i] = exp(log(p1->z[i]) + log(p2->z[i]));
+      nextZQ[i] = exp(log(q1->z[i]) + log(q2->z[i]));
+  }
+  hookup (p1, p2, nextZP, numBranchLengths);
+  hookup (q1, q2, nextZQ, numBranchLengths);
+
+  free(nextZP);
+  free(nextZQ);
+
+  // Disconnect p->p* branch
+  p->next->back = 0;
+  p->next->next->back = 0;
+  p->back->next->back = 0;
+  p->back->next->next->back = 0;
+
+  // Evaluate post-conditions?
+
+  return PLL_TRUE;
+}
+
+/**
+ * @brief Reconnects 2 subtrees and reoptimizes the branch lengths
+ *
+ * Reconnects 2 subtrees adding a missing branch between the branches defined by p and q.
+ * p and q must be different and belong to unconnected subtrees.
+ * It must exist at least one completely disconnected branch.
+ *
+ * The length of the new branches are ML estimated.
+ *
+ * @param tr, the tree
+ * @param pr, the partitions
+ * @param p, the node defining the branch in subtree 1
+ * @param q, the node defining the branch in subtree 2
+ *
+ *
+ * @return PLL_TRUE if OK, PLL_FALSE and sets errno in case of error
+ */
+int
+pllTbrConnectSubtreesML (pllInstance * tr, partitionList * pr, nodeptr p, nodeptr q)
+{
+
+  nodeptr pb, qb, pc, qc;
+  pb = p->back;
+  qb = q->back;
+
+  if (!pllTbrConnectSubtreesBL (tr, pr, p, q, 0, 0, 0, 0, 0)) {
+      return PLL_FALSE;
+  }
+
+  pc = p->back;
+  if (pc->next->back == pb)
+    pc = pc->next->next;
+  else
+    pc = pc->next;
+  qc = q->back;
+  if (qc->next->back == qb)
+    qc = qc->next->next;
+  else
+    qc = qc->next;
+
+  //TODO: This can be improved
+  pllEvaluateLikelihood (tr, pr, tr->start, PLL_TRUE, PLL_FALSE);
+
+  double lk = tr->likelihood - tr->likelihoodEpsilon - 1;
+
+  while (tr->likelihood - lk > tr->likelihoodEpsilon)
+    {
+      lk = tr->likelihood;
+      regionalSmooth (tr, pr, pc, 64, 1);
+
+      regionalSmooth (tr, pr, qc, 64, 1);
+
+      pllEvaluateLikelihood (tr, pr, tr->start, PLL_FALSE, PLL_FALSE);
+      assert(tr->likelihood >= lk);
+    }
+
+  return PLL_TRUE;
+}
+
+static int pllTbrConnectSubtrees(pllInstance * tr, nodeptr p,
+                                 nodeptr q, nodeptr * freeBranch, nodeptr * pb, nodeptr * qb) {
+  int i;
+  nodeptr tmpNode;
+
+  *freeBranch = 0;
+  *pb = 0;
+  *qb = 0;
+
+  // Evaluate preconditions
+
+  // p and q must be connected and independent branches
+  if (!(p && q && (p != q) && p->back && q->back && (p->back != q)
+      && (q->back != p)))
+    {
+      errno = PLL_TBR_INVALID_NODE;
+      return PLL_FALSE;
+    }
+
+  // p and q must belong to different subtrees. We check that we cannot reach q starting from p
+  for (tmpNode = p->next->back; tmpNode != p && tmpNode != q;
+      tmpNode = tmpNode->next->back)
+    ;
+  if (tmpNode == q)
+    {
+      // p and q are in the same subtree
+      errno = PLL_TBR_INVALID_NODE;
+      return PLL_FALSE;
+    }
+
+  (*pb) = p->back;
+  (*qb) = q->back;
+  tmpNode = 0;
+
+  // Must exist an unconnected branch
+  for (i = 1; i <= (2 * tr->mxtips - 3); i++)
+    {
+      if (!(tr->nodep[i]->back && tr->nodep[i]->next->back))
+        {
+          tmpNode = tr->nodep[i];
+
+          // It should have one and only one connected node
+          if (tmpNode->next->back
+              && !(tmpNode->back || tmpNode->next->next->back))
+            {
+              tmpNode = tmpNode->next->back;
+            }
+          else if (tmpNode->next->next->back
+              && !(tmpNode->back || tmpNode->next->back))
+            {
+              tmpNode = tmpNode->next->next->back;
+            }
+          else if (!(tmpNode->back || tmpNode->next->back
+              || tmpNode->next->next->back))
+            {
+              // There is no missing branch
+              errno = PLL_TBR_INVALID_NODE;
+              return PLL_FALSE;
+            }
+          break;
+        }
+    }
+
+  if (!tmpNode)
+    {
+      // There is no missing branch
+      errno = PLL_TBR_MISSING_FREE_BRANCH;
+      return PLL_FALSE;
+    }
+
+  (*freeBranch) = tmpNode;
+
+
+  // Join subtrees
+  hookupDefault (p, (*freeBranch)->next);
+  hookupDefault ((*pb), (*freeBranch)->next->next);
+  hookupDefault (q, (*freeBranch)->back->next);
+  hookupDefault ((*qb), (*freeBranch)->back->next->next);
+
+  return PLL_TRUE;
+}
+
+/**
+ * @brief Reconnects 2 subtrees and sets the user defined branch lengths
+ *
+ * Reconnects 2 subtrees adding a missing branch between the branches defined by p and q.
+ * p and q must be different and belong to unconnected subtrees.
+ * It must exist at least one completely disconnected branch.
+ *
+ * The length of the branch lengths arrays must be either 1 if pr->perGeneBranchLengths is false,
+ * or the number of partitions.
+ *
+ * The branch length arrays should contain the absolute branch lengths (not the internal z values).
+ *
+ * If a branch length array is a null pointer, branch lengths are initialized to default values.
+ *
+ * @param tr, the tree
+ * @param pr, the partitions
+ * @param p, the node defining the branch in subtree 1
+ * @param q, the node defining the branch in subtree 2
+ * @param pBl, the per-partition branch lengths of p connecting to the new branch
+ * @param pbBl, the per-partition branch lengths of p->back connecting to the new branch
+ * @param qBl, the per-partition branch lengths of q connecting to the new branch
+ * @param qbBl, the per-partition branch lengths of q->back connecting to the new branch
+ * @param rBl, the per-partition branch lengths of the new inserted branch
+ *
+ * @return PLL_TRUE if OK, PLL_FALSE and sets errno in case of error
+ */
+int
+pllTbrConnectSubtreesBL (pllInstance * tr, partitionList * pr, nodeptr p,
+                         nodeptr q, double * pBl, double * pbBl, double * qBl,
+                         double * qbBl, double * rBl)
+{
+  int i, numBranchLengths;
+  nodeptr pb, qb, freeBranch;
+
+  if (!pllTbrConnectSubtrees(tr, p, q, &freeBranch, &pb, &qb)) {
+      return PLL_FALSE;
+  }
+
+  // Set branch lengths
+  numBranchLengths = pr->perGeneBranchLengths ? pr->numberOfPartitions : 1;
+  if (pBl)
+    for (i = 0; i < numBranchLengths; i++)
+      pllSetBranchLength (tr, pr, p, i, pBl[i]);
+  if (pbBl)
+    for (i = 0; i < numBranchLengths; i++)
+      pllSetBranchLength (tr, pr, pb, i, pbBl[i]);
+  if (qBl)
+    for (i = 0; i < numBranchLengths; i++)
+      pllSetBranchLength (tr, pr, q, i, qBl[i]);
+  if (qbBl)
+    for (i = 0; i < numBranchLengths; i++)
+      pllSetBranchLength (tr, pr, qb, i, qbBl[i]);
+  if (rBl)
+    for (i = 0; i < numBranchLengths; i++)
+      pllSetBranchLength (tr, pr, freeBranch, i, rBl[i]);
+
+  return PLL_TRUE;
+}
+
+/**
+ * @brief Reconnects 2 subtrees and sets the user defined z values
+ *
+ * Reconnects 2 subtrees adding a missing branch between the branches defined by p and q.
+ * p and q must be different and belong to unconnected subtrees.
+ * It must exist at least one completely disconnected branch.
+ *
+ * The length of the branch lengths arrays must be either 1 if pr->perGeneBranchLengths is false,
+ * or the number of partitions.
+ *
+ * The branch length arrays should contain the z values.
+ *
+ * If a branch length array is a null pointer, z values are initialized to default values.
+ *
+ * @param tr, the tree
+ * @param pr, the partitions
+ * @param p, the node defining the branch in subtree 1
+ * @param q, the node defining the branch in subtree 2
+ * @param pZ, the per-partition z values of p connecting to the new branch
+ * @param pbZ, the per-partition z values of p->back connecting to the new branch
+ * @param qZ, the per-partition z values of q connecting to the new branch
+ * @param qbZ, the per-partition z values of q->back connecting to the new branch
+ * @param rZ, the per-partition z values of the new inserted branch
+ *
+ * @return PLL_TRUE if OK, PLL_FALSE and sets errno in case of error
+ */
+int
+pllTbrConnectSubtreesZ (pllInstance * tr, partitionList * pr, nodeptr p,
+                         nodeptr q, double * pZ, double * pbZ, double * qZ,
+                         double * qbZ, double * rZ)
+{
+  int i, numBranchLengths;
+  nodeptr pb, qb, freeBranch;
+
+  if (!pllTbrConnectSubtrees(tr, p, q, &freeBranch, &pb, &qb)) {
+      return PLL_FALSE;
+  }
+
+  // Set branch lengths
+  numBranchLengths = pr->perGeneBranchLengths ? pr->numberOfPartitions : 1;
+  if (pZ)
+    for (i = 0; i < numBranchLengths; i++) {
+        p->z[i] = pZ[i];
+        p->back->z[i] = pZ[i];
+    }
+  if (pbZ)
+    for (i = 0; i < numBranchLengths; i++) {
+        pb->z[i] = pbZ[i];
+        pb->back->z[i] = pbZ[i];
+    }
+  if (qZ)
+    for (i = 0; i < numBranchLengths; i++) {
+        q->z[i] = qZ[i];
+        q->back->z[i] = qZ[i];
+    }
+  if (qbZ)
+    for (i = 0; i < numBranchLengths; i++) {
+        qb->z[i] = qbZ[i];
+        qb->back->z[i] = qbZ[i];
+    }
+  if (rZ)
+    for (i = 0; i < numBranchLengths; i++) {
+        freeBranch->z[i] = rZ[i];
+        freeBranch->back->z[i] = rZ[i];
+    }
+
+  return PLL_TRUE;
+}

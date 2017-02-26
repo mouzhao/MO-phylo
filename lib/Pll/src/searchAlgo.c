@@ -68,14 +68,19 @@ void evalNNIForSubtree(pllInstance* tr, partitionList *pr, nodeptr p, nniMove* n
 
 static int cmp_nni(const void* nni1, const void* nni2);
 static void pllTraverseUpdate (pllInstance *tr, partitionList *pr, nodeptr p, nodeptr q, int mintrav, int maxtrav, pllRearrangeList * bestList);
+static void pllTraverseUpdateTBR (pllInstance *tr, partitionList *pr, nodeptr p, nodeptr q, int mintravP, int maxtravP, int mintravQ, int maxtravQ, pllRearrangeList * bestList);
 static int pllStoreRearrangement (pllRearrangeList * bestList, pllRearrangeInfo * rearr);
 static int pllTestInsertBIG (pllInstance * tr, partitionList * pr, nodeptr p, nodeptr q, pllRearrangeList * bestList);
 static int pllTestSPR (pllInstance * tr, partitionList * pr, nodeptr p, int mintrav, int maxtrav, pllRearrangeList * bestList);
+static int pllTestTBRMove (pllInstance * tr, partitionList * pr, nodeptr branch1, nodeptr branch2, pllRearrangeList * bestList);
+static int pllComputeTBR (pllInstance * tr, partitionList * pr, nodeptr p, int mintrav, int maxtrav, pllRearrangeList * bestList);
 static void pllCreateSprInfoRollback (pllInstance * tr, pllRearrangeInfo * rearr, int numBranches);
 static void pllCreateNniInfoRollback (pllInstance * tr, pllRearrangeInfo * rearr);
+static void pllCreateTbrInfoRollback (pllInstance * tr, pllRearrangeInfo * rearr, int numBranches);
 static void pllCreateRollbackInfo (pllInstance * tr, pllRearrangeInfo * rearr, int numBranches);
 static void pllRollbackNNI (pllInstance * tr, partitionList * pr, pllRollbackInfo * ri);
 static void pllRollbackSPR (partitionList * pr, pllRollbackInfo * ri);
+static void pllRollbackTBR (pllInstance * tr, partitionList * pr, pllRollbackInfo * ri);
 
 extern partitionLengths pLengths[PLL_MAX_MODEL];
 
@@ -1543,13 +1548,6 @@ static void readCheckpoint(pllInstance *tr, partitionList *pr)
   myfread(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
 
 */
-  /* need to read this as well in checkpoints, otherwise the branch lengths 
-     in the output tree files will be wrong, not the internal branch lengths though */
-/*
-  //TODO: Same problem as writing the checkpoint
-  //myfread(tr->fracchanges,  sizeof(double), pr->numberOfPartitions, f);
-  myfread(&(tr->fracchange),   sizeof(double), 1, f);
-*/
   /* pInfo */
 /*
   for(model = 0; model < pr->numberOfPartitions; model++)
@@ -1568,7 +1566,7 @@ static void readCheckpoint(pllInstance *tr, partitionList *pr)
     myfread(pr->partitionData[model]->substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);
     myfread(&(pr->partitionData[model]->alpha), sizeof(double), 1, f);
     
-    if(pr->partitionData[model]->protModels == PLL_LG4)
+    if(pr->partitionData[model]->protModels == PLL_LG4M || pr->partitionData[model]->protModels == PLL_LG4X)
 	{
 	  int 
 	    k;
@@ -1939,6 +1937,18 @@ int pllNniSearch(pllInstance * tr, partitionList *pr, int estimateModel) {
 		}
 	}
 
+  if (tr->rateHetModel == PLL_CAT)
+    {
+      // assign the maximum number of categories
+      for (i = 0; i < pr->numberOfPartitions; i++)
+        {
+          if (pr->partitionData[i]->numberOfCategories > tr->categories)
+            {
+              tr->categories = pr->partitionData[i]->numberOfCategories;
+            }
+        }
+    }
+
 	// Applying non-conflicting NNI moves
 	double delta = 1.0; // portion of NNI moves to apply
 	int notImproved;
@@ -2152,25 +2162,16 @@ pllTestInsertBIG (pllInstance * tr, partitionList * pr, nodeptr p, nodeptr q, pl
 
   pllEvaluateLikelihood (tr, pr, p->next->next, PLL_FALSE, PLL_FALSE);
   
-//pllInitParsimonyStructures (tr, pr, PLL_TRUE);
-  //unsigned int par = pllEvaluateParsimony(tr, pr, p->next->next, PLL_FALSE, PLL_TRUE);
+  rearr.rearrangeType  = PLL_REARRANGE_SPR;
+  rearr.likelihood     = tr->likelihood;
+  rearr.SPR.removeNode = p;
+  rearr.SPR.insertNode = q;
+  for (i = 0; i < numBranches; ++ i)
+   {
+     rearr.SPR.zqr[i] = tr->zqr[i];
+   }
 
-  //unsigned int par=pllEvaluateParsimony(tr, pr, p->next->next, PLL_TRUE, PLL_TRUE);
-  //printf ("Valor Parsimony: %d par %d \n", tr->bestParsimony, par);
-
-  if((tr->likelihood > tr->startLH)){ //Solo si es mayor a la Likelihood Inicial de la Topolia
-
- 	 rearr.rearrangeType  = PLL_REARRANGE_SPR;
-  	rearr.likelihood     = tr->likelihood;
- 	 rearr.SPR.removeNode = p;
- 	 rearr.SPR.insertNode = q;
- 	 for (i = 0; i < numBranches; ++ i)
-  	 {
-    	 	rearr.SPR.zqr[i] = tr->zqr[i];
-   	}
-
-  	pllStoreRearrangement (bestList, &rearr);
-  }
+  pllStoreRearrangement (bestList, &rearr);
 
 /*
   if(tr->likelihood > tr->bestOfNode)
@@ -2250,6 +2251,47 @@ static void pllTraverseUpdate (pllInstance *tr, partitionList *pr, nodeptr p, no
   }
 } 
 
+/** @ingroup rearrangementGroup
+ @brief Internal function for recursively traversing a tree and testing a possible subtree insertion
+
+ Recursively traverses the tree rooted at \a q in the direction of \a q->next->back and \a q->next->next->back
+ and at each node tests the placement of the pruned subtree rooted at \a p by calling the function
+ \a pllTestInsertBIG, which in turn saves the computed SPR in \a bestList if a) there is still space in
+ the \a bestList or b) if the likelihood of the SPR is better than any of the ones in \a bestList.
+
+ Tests a TBR move between branches 'p' and 'q'.
+
+ @note This function is not part of the API and should not be called by the user.
+ */
+static void
+pllTraverseUpdateTBR (pllInstance *tr, partitionList *pr, nodeptr p, nodeptr q,
+                      int mintravP, int maxtravP, int mintravQ, int maxtravQ,
+                      pllRearrangeList * bestList)
+{
+
+  if (mintravP <= 1 && mintravQ <= 1)
+    {
+      assert(pllTestTBRMove (tr, pr, p, q, bestList));
+    }
+
+  /* traverse q subtree */
+  if ((!isTip (q->number, tr->mxtips)) && (--maxtravQ > 0))
+    {
+      pllTraverseUpdateTBR (tr, pr, p, q->next->back, mintravP, 0, mintravQ - 1,
+                            maxtravQ, bestList);
+      pllTraverseUpdateTBR (tr, pr, p, q->next->next->back, mintravP, 0,
+                            mintravQ - 1, maxtravQ, bestList);
+    }
+
+  /* last, we traverse the p subtree */
+  if ((!isTip (p->number, tr->mxtips)) && (--maxtravP > 0))
+    {
+      pllTraverseUpdateTBR (tr, pr, p->next->back, q, mintravP - 1, maxtravP,
+                            mintravQ, maxtravQ, bestList);
+      pllTraverseUpdateTBR (tr, pr, p->next->next->back, q, mintravP - 1,
+                            maxtravP, mintravQ, maxtravQ, bestList);
+    }
+}
 
 /** @ingroup rearrangementGroup
     @brief Internal function for computing SPR moves
@@ -2383,8 +2425,95 @@ static int pllTestSPR (pllInstance * tr, partitionList * pr, nodeptr p, int mint
 }
 
 /** @ingroup rearrangementGroup
+ @brief Internal function for testing and saving a TBR move
+
+ Checks the likelihood of the placement of the pruned subtree specified by \a p
+ to node \a q. If the likelihood is better than some in the sorted list
+ \a bestList, or if there is still free space in \a bestList, then the TBR
+ move is recorded (in \a bestList)
+
+ @param tr
+ PLL instance
+
+ @param pr
+ List of partitions
+
+ @param branch1
+ Branch on one detached subtree
+
+ @param branch2
+ Branch on the other detached subtree
+
+ @param bestList
+ Where to store the TBR move
+
+ @note Internal function which is not part of the PLL API and therefore should not be
+ called by the user
+
+ @return
+ */
+static int
+pllTestTBRMove (pllInstance * tr, partitionList * pr, nodeptr branch1,
+                nodeptr branch2, pllRearrangeList * bestList)
+{
+  int i;
+  double b1z[PLL_NUM_BRANCHES], b2z[PLL_NUM_BRANCHES];
+  int numPartitions = pr->perGeneBranchLengths ? pr->numberOfPartitions : 1;
+  pllRearrangeInfo rearr;
+
+  for (i = 0; i < numPartitions; i++)
+    {
+      b1z[i] = branch1->z[i];
+      b2z[i] = branch2->z[i];
+    }
+  nodeptr tmpNode = branch1->back;
+
+  // TODO: We can make here two types of insertions in function of tr->thoroughInsertion
+  if (!pllTbrConnectSubtreesML (tr, pr, branch1, branch2))
+    {
+      return PLL_FALSE;
+    }
+
+  //pllEvaluateLikelihood (tr, pr, tr->start, PLL_TRUE, PLL_FALSE);
+
+  rearr.rearrangeType = PLL_REARRANGE_TBR;
+  rearr.likelihood = tr->likelihood;
+  rearr.TBR.insertBranch1 = branch1;
+  rearr.TBR.insertBranch2 = branch2;
+  if (branch1->back->next->back == tmpNode)
+    {
+      rearr.TBR.removeBranch = branch1->back->next->next;
+    }
+  else
+    {
+      rearr.TBR.removeBranch = branch1->back->next;
+    }
+
+  memcpy (rearr.TBR.zp, rearr.TBR.insertBranch1->z, numPartitions * sizeof(double));
+  memcpy (rearr.TBR.zpb, rearr.TBR.insertBranch1->back->z, numPartitions * sizeof(double));
+  memcpy (rearr.TBR.zq, rearr.TBR.insertBranch2->z, numPartitions * sizeof(double));
+  memcpy (rearr.TBR.zqb, rearr.TBR.insertBranch2->back->z, numPartitions * sizeof(double));
+  memcpy (rearr.TBR.zr, rearr.TBR.removeBranch->z, numPartitions * sizeof(double));
+
+  pllStoreRearrangement (bestList, &rearr);
+
+  /* restore */
+  int restoreTopologyOK = pllTbrRemoveBranch (tr, pr, rearr.TBR.removeBranch);
+
+  assert(restoreTopologyOK);
+
+  for (i = 0; i < numPartitions; i++)
+    {
+      branch1->z[i] = branch1->back->z[i] = b1z[i];
+      branch2->z[i] = branch2->back->z[i] = b2z[i];
+    }
+
+  return PLL_TRUE;
+}
+
+/** @ingroup rearrangementGroup
     @brief Compute a list of possible SPR moves
-    
+
     Iteratively tries all possible SPR moves that can be performed by
     pruning the subtree rooted at \a p and testing all possible placements
     in a radius of at least \a mintrav nodea and at most \a maxtrav nodes from
@@ -2410,7 +2539,7 @@ static int pllTestSPR (pllInstance * tr, partitionList * pr, nodeptr p, int mint
       the new branch lengths will also be optimized. This computes better likelihoods
       but also slows down the method considerably.
 */
-static void 
+static void
 pllComputeSPR (pllInstance * tr, partitionList * pr, nodeptr p, int mintrav, int maxtrav, pllRearrangeList * bestList)
 {
 
@@ -2421,6 +2550,133 @@ pllComputeSPR (pllInstance * tr, partitionList * pr, nodeptr p, int mintrav, int
   tr->bestOfNode = PLL_UNLIKELY;
 
   pllTestSPR (tr, pr, p, mintrav, maxtrav, bestList);
+}
+
+/** @ingroup rearrangementGroup
+ @brief Compute a list of possible TBR moves
+
+ Iteratively tries all possible TBR moves that can be performed by
+ pruning the branch at \a p and testing all possible placements
+ in a radius of at least \a mintrav nodes and at most \a maxtrav nodes from
+ \a p. Note that \a tr->thoroughInsertion affects the behaviour of the function (see note).
+
+ @param tr
+ PLL instance
+
+ @param pr
+ List of partitions
+
+ @param p
+ Node specifying the pruned branch.
+
+ @param mintrav
+ Minimum distance from \a p where to try inserting the pruned branch
+
+ @param maxtrav
+ Maximum distance from \a p where to try inserting the pruned branch
+
+ @param[out] bestList
+ Sorted list of the best rearrangements
+ */
+static int
+pllComputeTBR (pllInstance * tr, partitionList * pr, nodeptr p, int mintrav,
+               int maxtrav, pllRearrangeList * bestList)
+{
+
+  tr->startLH = tr->endLH = tr->likelihood;
+
+  /* TODO: Add cutoff code */
+
+  tr->bestOfNode = PLL_UNLIKELY;
+
+  nodeptr p1, p2, q, q1, q2;
+  double p1z[PLL_NUM_BRANCHES], p2z[PLL_NUM_BRANCHES], q1z[PLL_NUM_BRANCHES],
+      q2z[PLL_NUM_BRANCHES], rz[PLL_NUM_BRANCHES];
+  int i, numPartitions;
+
+  q = p->back;
+
+  if (isTip (p->number, tr->mxtips) || isTip (q->number, tr->mxtips))
+    {
+      errno = PLL_TBR_NOT_INNER_BRANCH;
+      return PLL_FALSE;
+    }
+
+  numPartitions = pr->perGeneBranchLengths ? pr->numberOfPartitions : 1;
+
+  p1 = p->next->back;
+  p2 = p->next->next->back;
+  q1 = q->next->back;
+  q2 = q->next->next->back;
+
+  /* save branch lengths before splitting the tree in two components */
+  for (i = 0; i < numPartitions; ++i)
+    {
+      p1z[i] = p1->z[i];
+      p2z[i] = p2->z[i];
+      q1z[i] = q1->z[i];
+      q2z[i] = q2->z[i];
+      rz[i] = p->z[i];
+    }
+
+  if (maxtrav < 1 || mintrav > maxtrav)
+    return PLL_BADREAR;
+  q = p->back;
+
+  if (!isTip (p1->number, tr->mxtips) || !isTip (p2->number, tr->mxtips))
+    {
+
+      /* split the tree in two components */
+      if (!pllTbrRemoveBranch (tr, pr, p))
+        return PLL_BADREAR;
+
+      /* p1 and p2 are now connected */
+      assert(p1->back == p2 && p2->back == p1);
+
+      /* recursively traverse and perform TBR */
+      pllTraverseUpdateTBR (tr, pr, p1, q1, mintrav, maxtrav, mintrav, maxtrav,
+                            bestList);
+      if (!isTip (q2->number, tr->mxtips))
+        {
+          pllTraverseUpdateTBR (tr, pr, q2->next->back, p1, mintrav - 1,
+                                maxtrav - 1, mintrav, maxtrav, bestList);
+          pllTraverseUpdateTBR (tr, pr, q2->next->next->back, p1, mintrav - 1,
+                                maxtrav - 1, mintrav, maxtrav, bestList);
+        }
+
+      if (!isTip (p2->number, tr->mxtips))
+        {
+          pllTraverseUpdateTBR (tr, pr, p2->next->back, q1, mintrav - 1,
+                                maxtrav - 1, mintrav, maxtrav, bestList);
+          pllTraverseUpdateTBR (tr, pr, p2->next->next->back, q1, mintrav - 1,
+                                maxtrav - 1, mintrav, maxtrav, bestList);
+          if (!isTip (q2->number, tr->mxtips))
+            {
+              pllTraverseUpdateTBR (tr, pr, p2->next->back, q2->next->back,
+                                    mintrav - 1, maxtrav - 1, mintrav - 1,
+                                    maxtrav - 1, bestList);
+              pllTraverseUpdateTBR (tr, pr, p2->next->back,
+                                    q2->next->next->back, mintrav - 1,
+                                    maxtrav - 1, mintrav - 1, maxtrav - 1,
+                                    bestList);
+              pllTraverseUpdateTBR (tr, pr, p2->next->next->back,
+                                    q2->next->back, mintrav - 1, maxtrav - 1,
+                                    mintrav - 1, maxtrav - 1, bestList);
+              pllTraverseUpdateTBR (tr, pr, p2->next->next->back,
+                                    q2->next->next->back, mintrav - 1,
+                                    maxtrav - 1, mintrav - 1, maxtrav - 1,
+                                    bestList);
+            }
+        }
+
+      /* restore the topology as it was before the split */
+      int restoreTopoOK = pllTbrConnectSubtreesZ (tr, pr, p1, q1, p1z, p2z, q1z,
+                                                  q2z, rz);
+      assert(restoreTopoOK);
+
+    }
+
+  return PLL_TRUE;
 }
 
 /** @ingroup rearrangementGroup
@@ -2595,8 +2851,55 @@ pllSearchNNI (pllInstance * tr, partitionList * pr, nodeptr p, int mintrav, int 
 }
 
 /** @ingroup rearrangementGroup
-    @brief Create rollback information for an SPR move
+    @brief Create rollback information for a TBR move
     
+    Creates a structure of type ::pllRollbackInfo and fills it with rollback
+    information about the SPR move described in \a rearr. The rollback info
+    is stored in the PLL instance in a LIFO manner.
+
+    @param tr
+      PLL instance
+
+    @param rearr
+      Description of the TBR move
+*/
+static void 
+pllCreateTbrInfoRollback (pllInstance * tr, pllRearrangeInfo * rearr, int numBranches)
+{
+  pllRollbackInfo * tbrRb;
+  nodeptr p;
+  int i;
+
+  p = rearr->TBR.removeBranch;
+
+  tbrRb = (pllRollbackInfo *) rax_malloc (sizeof (pllRollbackInfo) + 5 * numBranches * sizeof (double));
+  tbrRb->TBR.zp1 = (double *) ((void *)tbrRb + sizeof (pllRollbackInfo));
+  tbrRb->TBR.zp2 = (double *) ((void *)tbrRb + sizeof (pllRollbackInfo) +     numBranches * sizeof (double));
+  tbrRb->TBR.zq1 = (double *) ((void *)tbrRb + sizeof (pllRollbackInfo) + 2 * numBranches * sizeof (double));
+  tbrRb->TBR.zq2 = (double *) ((void *)tbrRb + sizeof (pllRollbackInfo) + 3 * numBranches * sizeof (double));
+  tbrRb->TBR.zpq = (double *) ((void *)tbrRb + sizeof (pllRollbackInfo) + 3 * numBranches * sizeof (double));
+
+  for (i = 0; i < numBranches; ++ i)
+   {
+     tbrRb->TBR.zpq[i]   = p->z[i];
+     tbrRb->TBR.zp1[i]   = p->next->z[i];
+     tbrRb->TBR.zp2[i]   = p->next->next->z[i];
+     tbrRb->TBR.zq1[i]   = p->back->next->z[i];
+     tbrRb->TBR.zq2[i]   = p->back->next->next->z[i];
+   }
+
+  tbrRb->TBR.p = p;
+  tbrRb->TBR.q = p->next->back;
+  tbrRb->TBR.r = p->back->next->back;
+
+  tbrRb->rearrangeType = PLL_REARRANGE_TBR;
+
+  pllStackPush (&(tr->rearrangeHistory), (void *) tbrRb);
+}
+
+/** @ingroup rearrangementGroup
+    @brief Create rollback information for an SPR move
+
     Creates a structure of type ::pllRollbackInfo and fills it with rollback
     information about the SPR move described in \a rearr. The rollback info
     is stored in the PLL instance in a LIFO manner.
@@ -2610,7 +2913,7 @@ pllSearchNNI (pllInstance * tr, partitionList * pr, nodeptr p, int mintrav, int 
     @param numBranches
       Number of partitions
 */
-static void 
+static void
 pllCreateSprInfoRollback (pllInstance * tr, pllRearrangeInfo * rearr, int numBranches)
 {
   pllRollbackInfo * sprRb;
@@ -2703,6 +3006,9 @@ pllCreateRollbackInfo (pllInstance * tr, pllRearrangeInfo * rearr, int numBranch
      case PLL_REARRANGE_SPR:
        pllCreateSprInfoRollback (tr, rearr, numBranches);
        break;
+     case PLL_REARRANGE_TBR:
+       pllCreateTbrInfoRollback (tr, rearr, numBranches);
+       break;
      default:
        break;
    }
@@ -2715,9 +3021,6 @@ pllCreateRollbackInfo (pllInstance * tr, pllRearrangeInfo * rearr, int numBranch
 
     Perform a rollback (undo) on the last SPR move.
     
-    @param tr
-      PLL instance
-
     @param pr
       List of partitions
 
@@ -2735,6 +3038,56 @@ pllRollbackSPR (partitionList * pr, pllRollbackInfo * ri)
   hookup (ri->SPR.p->next->next, ri->SPR.pnn,     ri->SPR.zpnn, numBranches); 
   hookup (ri->SPR.p,             ri->SPR.p->back, ri->SPR.zp,   numBranches);
   hookup (ri->SPR.q,             ri->SPR.r,       ri->SPR.zqr,  numBranches);
+
+  rax_free (ri);
+}
+
+/** @ingroup rearrangementGroup
+ @brief Rollback a TBR move
+
+ Perform a rollback (undo) on the last TBR move.
+
+ @param tr
+ PLL instance
+
+ @param pr
+ List of partitions
+
+ @param ri
+ Rollback information
+ */
+static void
+pllRollbackTBR (pllInstance * tr, partitionList * pr, pllRollbackInfo * ri)
+{
+  int numBranches;
+  if (ri->rearrangeType != PLL_REARRANGE_TBR)
+    {
+      return;
+    }
+
+  numBranches = pr->perGeneBranchLengths ? pr->numberOfPartitions : 1;
+
+  pllTbrRemoveBranch (tr, pr, ri->TBR.p);
+  pllTbrConnectSubtreesBL (tr, pr, ri->TBR.q, ri->TBR.r, 0, 0, 0, 0, 0);
+
+  memcpy (ri->TBR.p->next->z, ri->TBR.zp1, numBranches * sizeof(double));
+  memcpy (ri->TBR.p->next->back->z, ri->TBR.zp1, numBranches * sizeof(double));
+
+  memcpy (ri->TBR.p->next->next->z, ri->TBR.zp2, numBranches * sizeof(double));
+  memcpy (ri->TBR.p->next->next->back->z, ri->TBR.zp2,
+          numBranches * sizeof(double));
+
+  memcpy (ri->TBR.p->z, ri->TBR.zpq, numBranches * sizeof(double));
+  memcpy (ri->TBR.p->back->z, ri->TBR.zpq, numBranches * sizeof(double));
+
+  memcpy (ri->TBR.p->back->next->z, ri->TBR.zq1, numBranches * sizeof(double));
+  memcpy (ri->TBR.p->back->next->back->z, ri->TBR.zq1,
+          numBranches * sizeof(double));
+
+  memcpy (ri->TBR.p->back->next->next->z, ri->TBR.zq2,
+          numBranches * sizeof(double));
+  memcpy (ri->TBR.p->back->next->next->back->z, ri->TBR.zq2,
+          numBranches * sizeof(double));
 
   rax_free (ri);
 }
@@ -2798,6 +3151,9 @@ pllRearrangeRollback (pllInstance * tr, partitionList * pr)
      case PLL_REARRANGE_SPR:
        pllRollbackSPR (pr, ri);
        break;
+     case PLL_REARRANGE_TBR:
+       pllRollbackTBR (tr, pr, ri);
+       break;
      default:
        rax_free (ri);
        return (PLL_FALSE);
@@ -2830,9 +3186,10 @@ pllRearrangeRollback (pllInstance * tr, partitionList * pr)
     @param saveRollbackInfo
       If set to \b PLL_TRUE, rollback info will be kept for undoing the rearrangement move
 */
-void
+int
 pllRearrangeCommit (pllInstance * tr, partitionList * pr, pllRearrangeInfo * rearr, int saveRollbackInfo)
 {
+  nodeptr q, r;
   int numBranches;
 
   numBranches = pr->perGeneBranchLengths ? pr->numberOfPartitions : 1;
@@ -2853,9 +3210,28 @@ pllRearrangeCommit (pllInstance * tr, partitionList * pr, pllRearrangeInfo * rea
        removeNodeBIG (tr, pr, rearr->SPR.removeNode, numBranches);
        insertBIG     (tr, pr, rearr->SPR.removeNode, rearr->SPR.insertNode);
        break;
+     case PLL_REARRANGE_TBR:
+           q = rearr->TBR.removeBranch->next->back;
+           r = rearr->TBR.removeBranch->back->next->back;
+           if (!pllTbrRemoveBranch (tr, pr, rearr->TBR.removeBranch))
+             {
+               return PLL_FALSE;
+             }
+           if (!pllTbrConnectSubtreesZ (tr, pr, rearr->TBR.insertBranch1,
+                                        rearr->TBR.insertBranch2, rearr->TBR.zp,
+                                        rearr->TBR.zpb, rearr->TBR.zq,
+                                        rearr->TBR.zqb, rearr->TBR.zr))
+             {
+               /* Undo remove branch. This operation should be done without errors. */
+               assert(pllTbrConnectSubtreesML (tr, pr, q, r));
+               return PLL_FALSE;
+             }
+           break;
      default:
+       return PLL_FALSE;
        break;
    }
+  return PLL_TRUE;
 }
 
 
@@ -2913,8 +3289,11 @@ pllRearrangeSearch (pllInstance * tr, partitionList * pr, int rearrangeType, nod
        break;
 
      case PLL_REARRANGE_TBR:
+      pllComputeTBR (tr, pr, p, mintrav, maxtrav, bestList);
        break;
+
      default:
+      assert(0);
        break;
    }
 }
@@ -3049,6 +3428,7 @@ pllRaxmlSearchAlgorithm(pllInstance * tr, partitionList * pr,
     boolean estimateModel)
 {
   pllEvaluateLikelihood(tr, pr, tr->start, PLL_TRUE, PLL_FALSE);
+  pllOptimizeModelParameters(tr, pr, 1.0);
   pllOptimizeBranchLengths(tr, pr, 32);
 
   unsigned int vLength = 0;

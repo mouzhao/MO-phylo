@@ -82,6 +82,7 @@ FILE(REMOVE_RECURSE
   "CMakeFiles/bppcore-shared.dir/Bpp/Numeric/Stat/Mva/DualityDiagram.cpp.o"
   "CMakeFiles/bppcore-shared.dir/Bpp/Numeric/Stat/Mva/PrincipalComponentAnalysis.cpp.o"
   "CMakeFiles/bppcore-shared.dir/Bpp/Numeric/Stat/Mva/CorrespondenceAnalysis.cpp.o"
+  "libbpp-core.pdb"
   "libbpp-core.so"
   "libbpp-core.so.2.0.3"
   "libbpp-core.so.2"

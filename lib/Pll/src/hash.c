@@ -27,6 +27,7 @@
  * @file hash.c
  */
 #include <stdio.h>
+#include <assert.h>
 #include <string.h>
 #include "pll.h"
 #include "mem_alloc.h"
@@ -200,6 +201,9 @@ void pllHashDestroy (pllHashTable ** hTable, void (*cbDealloc)(void *))
   unsigned int i;
   pllHashItem * hItem;
   pllHashItem * tmp;
+  
+  assert(hTable); 
+  assert(*hTable);
 
   for (i = 0; i < (*hTable)->size; ++ i)
   {

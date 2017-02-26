@@ -189,7 +189,7 @@ pllInitAlignmentData (int sequenceCount, int sequenceLength)
 
    alignmentData->sequenceCount  = sequenceCount;
    alignmentData->sequenceLength = sequenceLength;
-   //alignmentData->originalSeqLength = sequenceLength;
+   alignmentData->originalSeqLength = sequenceLength;
 
    /** TODO: remove siteWeights from alignment */
    alignmentData->siteWeights    = NULL;
@@ -761,7 +761,7 @@ pllParseFASTA (const char * filename)
       else
       {
         alignmentData->sequenceLength = qseqlen;
-        //alignmentData->originalSeqLength = qseqlen;
+        alignmentData->originalSeqLength = qseqlen;
         prev_qseqlen = qseqlen;
       }
     }

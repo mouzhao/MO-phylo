@@ -4,7 +4,7 @@
 #Experimennt ID
 experimentid = 25
 
-DATA= $(HOME)/mo-phylogenetics/data
+DATA= /home/mophylo/MO-Phylogenetics/data
 
 # NSGAII,SMSEMOA,MOEAD,PAES,MOCHC,ssNSGAII
 algorithm = NSGAII

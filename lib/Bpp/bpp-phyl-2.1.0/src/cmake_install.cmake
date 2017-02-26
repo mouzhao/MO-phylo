@@ -1,8 +1,8 @@
-# Install script for directory: /home/cristian/INSTALADOR/lib/Bpp/bpp-phyl-2.1.0/src
+# Install script for directory: /home/mophylo/MO-Phylogenetics/lib/Bpp/bpp-phyl-2.1.0/src
 
 # Set the install prefix
 IF(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  SET(CMAKE_INSTALL_PREFIX "/home/cristian/INSTALADOR/lib/Bpp")
+  SET(CMAKE_INSTALL_PREFIX "/home/mophylo/MO-Phylogenetics/lib/Bpp")
 ENDIF(NOT DEFINED CMAKE_INSTALL_PREFIX)
 STRING(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -33,34 +33,48 @@ IF(NOT DEFINED CMAKE_INSTALL_SO_NO_EXE)
 ENDIF(NOT DEFINED CMAKE_INSTALL_SO_NO_EXE)
 
 IF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
-  FILE(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "/home/cristian/INSTALADOR/lib/Bpp/bpp-phyl-2.1.0/src/libbpp-phyl.a")
+  FILE(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "/home/mophylo/MO-Phylogenetics/lib/Bpp/bpp-phyl-2.1.0/src/libbpp-phyl.a")
 ENDIF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
 
 IF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
-  IF(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3")
-    FILE(RPATH_CHECK
-         FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3"
-         RPATH "")
-  ENDIF(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3")
+  FOREACH(file
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so"
+      )
+    IF(EXISTS "${file}" AND
+       NOT IS_SYMLINK "${file}")
+      FILE(RPATH_CHECK
+           FILE "${file}"
+           RPATH "")
+    ENDIF()
+  ENDFOREACH()
   FILE(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE SHARED_LIBRARY FILES
-    "/home/cristian/INSTALADOR/lib/Bpp/bpp-phyl-2.1.0/src/libbpp-phyl.so.9.1.3"
-    "/home/cristian/INSTALADOR/lib/Bpp/bpp-phyl-2.1.0/src/libbpp-phyl.so.9"
-    "/home/cristian/INSTALADOR/lib/Bpp/bpp-phyl-2.1.0/src/libbpp-phyl.so"
+    "/home/mophylo/MO-Phylogenetics/lib/Bpp/bpp-phyl-2.1.0/src/libbpp-phyl.so.9.1.3"
+    "/home/mophylo/MO-Phylogenetics/lib/Bpp/bpp-phyl-2.1.0/src/libbpp-phyl.so.9"
+    "/home/mophylo/MO-Phylogenetics/lib/Bpp/bpp-phyl-2.1.0/src/libbpp-phyl.so"
     )
-  IF(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3")
-    FILE(RPATH_REMOVE
-         FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3")
-    IF(CMAKE_INSTALL_DO_STRIP)
-      EXECUTE_PROCESS(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3")
-    ENDIF(CMAKE_INSTALL_DO_STRIP)
-  ENDIF(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3")
+  FOREACH(file
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9.1.3"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so.9"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libbpp-phyl.so"
+      )
+    IF(EXISTS "${file}" AND
+       NOT IS_SYMLINK "${file}")
+      FILE(RPATH_REMOVE
+           FILE "${file}")
+      IF(CMAKE_INSTALL_DO_STRIP)
+        EXECUTE_PROCESS(COMMAND "/usr/bin/strip" "${file}")
+      ENDIF(CMAKE_INSTALL_DO_STRIP)
+    ENDIF()
+  ENDFOREACH()
 ENDIF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
 
 IF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
-  FILE(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/Bpp" TYPE DIRECTORY FILES "/home/cristian/INSTALADOR/lib/Bpp/bpp-phyl-2.1.0/src/Bpp/" FILES_MATCHING REGEX "/[^/]*\\.h$")
+  FILE(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/Bpp" TYPE DIRECTORY FILES "/home/mophylo/MO-Phylogenetics/lib/Bpp/bpp-phyl-2.1.0/src/Bpp/" FILES_MATCHING REGEX "/[^/]*\\.h$")
 ENDIF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
 
 IF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
-  EXECUTE_PROCESS(COMMAND /home/cristian/INSTALADOR/lib/Bpp/bpp-phyl-2.1.0/genIncludes.sh /home/cristian/INSTALADOR/lib/Bpp/include/Bpp)
+  EXECUTE_PROCESS(COMMAND /home/mophylo/MO-Phylogenetics/lib/Bpp/bpp-phyl-2.1.0/genIncludes.sh /home/mophylo/MO-Phylogenetics/lib/Bpp/include/Bpp)
 ENDIF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
 

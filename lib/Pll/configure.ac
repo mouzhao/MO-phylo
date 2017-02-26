@@ -2,13 +2,13 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([libpll], [1.0.0], [Tomas.Flouri@h-its.org])
+AC_INIT([libpll], [1.0.11], [Tomas.Flouri@h-its.org])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE
 
 # AM_MAINTAINER_MODE
 
-LIBPLL_VERSION=1.0.0
+LIBPLL_VERSION=1.0.11
 LIBPLL_MAJOR=1
 LIBPLL_MINOR=0
 LIBPLL_REV=0
@@ -83,12 +83,19 @@ if test "x${ax_cv_have_sse3_ext}" = "xyes"; then
 fi
 
 AC_ARG_ENABLE(generic,AC_HELP_STRING([--enable-generic],[build generic version of the library]),[have_generic=yes])
+AC_ARG_ENABLE(generic,AC_HELP_STRING([--disable-generic],[build generic version of the library]),[have_generic=no])
 AC_ARG_ENABLE(avx,AC_HELP_STRING([--enable-avx],[build AVX version of the library]),[have_avx=yes])
+AC_ARG_ENABLE(avx,AC_HELP_STRING([--disable-avx],[build AVX version of the library]),[have_avx=no])
 AC_ARG_ENABLE(avx-pthreads,AC_HELP_STRING([--enable-avx-pthreads],[build pthreads AVX version of the library]),[have_avx_pthreads=yes])
+AC_ARG_ENABLE(avx-pthreads,AC_HELP_STRING([--disable-avx-pthreads],[build pthreads AVX version of the library]),[have_avx_pthreads=no])
 AC_ARG_ENABLE(avx-mpi,AC_HELP_STRING([--enable-avx-mpi],[build MPI AVX version of the library]),[have_avx_mpi=yes])
+AC_ARG_ENABLE(avx-mpi,AC_HELP_STRING([--disable-avx-mpi],[build MPI AVX version of the library]),[have_avx_mpi=no])
 AC_ARG_ENABLE(sse3,AC_HELP_STRING([--enable-sse3],[build SSE3 version of the library]),[have_sse3=yes])
+AC_ARG_ENABLE(sse3,AC_HELP_STRING([--disable-sse3],[build SSE3 version of the library]),[have_sse3=no])
 AC_ARG_ENABLE(sse3-pthreads,AC_HELP_STRING([--enable-sse3-pthreads],[build pthreads SSE3 version of the library]),[have_sse3_pthreads=yes])
+AC_ARG_ENABLE(sse3-pthreads,AC_HELP_STRING([--disable-sse3-pthreads],[build pthreads SSE3 version of the library]),[have_sse3_pthreads=no])
 AC_ARG_ENABLE(sse3-mpi,AC_HELP_STRING([--enable-sse3-mpi],[build MPI SSE3 version of the library]),[have_sse3_mpi=yes])
+AC_ARG_ENABLE(sse3-mpi,AC_HELP_STRING([--disable-sse3-mpi],[build MPI SSE3 version of the library]),[have_sse3_mpi=no])
 
 AX_MPI([have_mpi=yes],[have_mpi=no])
 
@@ -112,5 +119,6 @@ AC_CONFIG_FILES([Makefile
                  MPI/Makefile
                  src/Makefile
                  man/Makefile
-                 examples/Makefile])
+                 examples/Makefile
+		 examples/PLL/Makefile])
 AC_OUTPUT

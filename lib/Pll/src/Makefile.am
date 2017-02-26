@@ -50,4 +50,6 @@ libpll_avx_pthreads_a_CFLAGS = $(libpll_avx_pthreads_la_CFLAGS)
 endif
 
 pkgincludedir=$(includedir)/pll
-pkginclude_HEADERS = pll.h newick.h stack.h hash.h errcodes.h globalVariables.h lexer.h genericParallelization.h treeIO.h queue.h parsePartition.h mem_alloc.h cycle.h
+pkginclude_HEADERS = pll.h stack.h queue.h parsePartition.h
+EXTRA_DIST = cycle.h genericParallelization.h hardware.h lexer.h mic_native.h pll.h queue.h \
+             errcodes.h globalVariables.h hash.h mem_alloc.h parsePartition.h pllInternal.h stack.h

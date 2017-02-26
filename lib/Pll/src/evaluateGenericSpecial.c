@@ -90,7 +90,8 @@
 static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
                                        double *x1, double *x2,  
                                        double *tipVector[4], 
-                                       unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling);
+                                       unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling,
+                                       double * lg4_weights);
 
 /* GAMMA for proteins with memory saving */
 
@@ -327,7 +328,6 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 {
   double
     exponent,
-    logMin = log(PLL_TWOTOTHE256),
     sum = 0.0, 
     unobserved,
     term,
@@ -355,12 +355,16 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	  for(l = 0; l < numStates; l++)
 	    term += left[l] * right[l] * diagptable[l];	      	 	 	  	 
 
-	  exponent = ((double)ex2[i] * logMin);	  
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page:
+	       If result underflows, and is not representable,
+	       a range error occurs and 0.0 is returned.
+	 */
 
-	  assert(exponent < 700.0);
+	  exponent = pow(PLL_MINLIKELIHOOD, (double)ex2[i]);
 
-	  unobserved = fabs(term) * exp(exponent);	    
-	  
+	  unobserved = fabs(term) * exponent;
+
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0)
 	    {
@@ -384,10 +388,15 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	  for(l = 0; l < numStates; l++)
 	    term += left[l] * right[l] * diagptable[l];		  
 	  
-	  //because of the way we scale for sites that only consist of a single character
-	  //ex1 and ex2 will mostly be zero, so there is no re-scaling that needs to be done
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page:
+	       If result underflows, and is not representable,
+	       a range error occurs and 0.0 is returned.
+	  */
 
-	  exponent = ((double)(ex1[i] + ex2[i]) * logMin);
+	  exponent = pow(PLL_MINLIKELIHOOD, (double)(ex1[i] + ex2[i]));
+
+	  unobserved = fabs(term) * exponent;
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0 || ex1[i] > 0)
@@ -397,10 +406,6 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	    }
 #endif
 
-	  assert(exponent < 700.0);
-	  
-	  unobserved = fabs(term) * exp(exponent);	  	  
-  
 	  sum += unobserved;
 	}             
     }        
@@ -416,7 +421,6 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 {
   double
     exponent,
-    logMin = log(PLL_TWOTOTHE256),
     sum = 0.0, 
     unobserved,
     term,
@@ -450,11 +454,15 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 		term += left[l] * right[l] * diagptable[j * numStates + l];	      
 	    }	 	  	 
 
-	  exponent = ((double)ex2[i] * logMin);	  
+      /* assumes that pow behaves as expected/specified for underflows
+         from the man page:
+           If result underflows, and is not representable,
+           a range error occurs and 0.0 is returned.
+      */
 
-	  assert(exponent < 700.0);
+      exponent = pow(PLL_MINLIKELIHOOD, (double)ex2[i]);
 
-	  unobserved = 0.25 * fabs(term) * exp(exponent);	    
+      unobserved = fabs(term) * exponent;
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0)
@@ -481,10 +489,15 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 		term += left[l] * right[l] * diagptable[j * numStates + l];	
 	    }
 	  
-	  //because of the way we scale for sites that only consist of a single character
-	  //ex1 and ex2 will mostly be zero, so there is no re-scaling that needs to be done
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page:
+	       If result underflows, and is not representable,
+	       a range error occurs and 0.0 is returned.
+	  */
 
-	  exponent = ((double)(ex1[i] + ex2[i]) * logMin);
+	  exponent = pow(PLL_MINLIKELIHOOD, (double)(ex1[i] + ex2[i]));
+
+	  unobserved = fabs(term) * exponent;
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0 || ex1[i] > 0)
@@ -494,10 +507,6 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 	    }
 #endif
 
-	  assert(exponent < 700.0);
-	  
-	  unobserved = 0.25 * fabs(term) * exp(exponent);	  	  
-  
 	  sum += unobserved;
 	}             
     }        
@@ -1454,7 +1463,7 @@ void pllEvaluateIterative(pllInstance *tr, partitionList *pr, boolean getPerSite
           
           /* calc P-Matrix at root for branch z connecting nodes p and q */
           
-          if(pr->partitionData[model]->dataType == PLL_AA_DATA && pr->partitionData[model]->protModels == PLL_LG4)                                        
+          if(pr->partitionData[model]->dataType == PLL_AA_DATA && (pr->partitionData[model]->protModels == PLL_LG4M || pr->partitionData[model]->protModels == PLL_LG4X))
             calcDiagptableFlex_LG4(z, 4, pr->partitionData[model]->gammaRates, pr->partitionData[model]->EIGN_LG4, diagptable, 20);
           else
             calcDiagptable(z, states, categories, rateCategories, pr->partitionData[model]->EIGN, diagptable);
@@ -1520,6 +1529,9 @@ void pllEvaluateIterative(pllInstance *tr, partitionList *pr, boolean getPerSite
               switch(states)
                 {         
                 case 2: /* binary */
+#ifdef __MIC_NATIVE
+             assert(0 && "Binary data model is not implemented on Intel MIC");
+#else
                   assert (!tr->saveMemory);
                   if (tr->rateHetModel == PLL_CAT)
                    {
@@ -1533,10 +1545,10 @@ void pllEvaluateIterative(pllInstance *tr, partitionList *pr, boolean getPerSite
                                                                    x1_start, x2_start, pr->partitionData[model]->tipVector,
                                                                    tip, width, diagptable, fastScaling);                 
                    }
+#endif
                   break;
                 case 4: /* DNA */
                   {
-
 #ifdef __MIC_NATIVE
 
                   /* CAT & memory saving are not supported on MIC */
@@ -1584,10 +1596,10 @@ void pllEvaluateIterative(pllInstance *tr, partitionList *pr, boolean getPerSite
                   assert(!tr->saveMemory);
                   assert(tr->rateHetModel == PLL_GAMMA);
 
-                  if(pr->partitionData[model]->protModels == PLL_LG4)
+                  if(pr->partitionData[model]->protModels == PLL_LG4M || pr->partitionData[model]->protModels == PLL_LG4X)
                     partitionLikelihood =  evaluateGTRGAMMAPROT_LG4_MIC(pr->partitionData[model]->wgt,
                                                                     x1_start, x2_start, pr->partitionData[model]->tipVector_LG4,
-                                                                    tip, width, diagptable);
+                                                                    tip, width, diagptable, pr->partitionData[model]->lg4x_weights);
                   else
                         partitionLikelihood =  evaluateGTRGAMMAPROT_MIC(ex1, ex2, pr->partitionData[model]->wgt,
                                               x1_start, x2_start, pr->partitionData[model]->tipVector,
@@ -1624,10 +1636,10 @@ void pllEvaluateIterative(pllInstance *tr, partitionList *pr, boolean getPerSite
                                                                                  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
                         else
                       {
-                        if(pr->partitionData[model]->protModels == PLL_LG4)
+                        if(pr->partitionData[model]->protModels == PLL_LG4M || pr->partitionData[model]->protModels == PLL_LG4X)
                           partitionLikelihood =  evaluateGTRGAMMAPROT_LG4((int *)NULL, (int *)NULL, pr->partitionData[model]->wgt,
                                                                           x1_start, x2_start, pr->partitionData[model]->tipVector_LG4,
-                                                                          tip, width, diagptable, PLL_TRUE);
+                                                                          tip, width, diagptable, PLL_TRUE, pr->partitionData[model]->lg4x_weights);
                         else
                           partitionLikelihood = evaluateGTRGAMMAPROT(fastScaling, ex1, ex2, pr->partitionData[model]->wgt,
                                                                      x1_start, x2_start, pr->partitionData[model]->tipVector,
@@ -1890,7 +1902,6 @@ void pllEvaluateLikelihood (pllInstance *tr, partitionList *pr, nodeptr p, boole
   /* start the parallel region and tell all threads to compute the log likelihood for 
      their fraction of the data. This call is implemented in the case switch of execFunction in axml.c
      */
-
   if(getPerSiteLikelihoods)
     {
       memset(tr->lhs, 0, sizeof(double) * tr->originalCrunchedLength); 
@@ -2279,7 +2290,6 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
 
 
 
-#if (defined(__SSE3) || defined(__AVX))
 /* below are the optimized function versions with geeky intrinsics */
 
 /** @ingroup evaluateLikelihoodGroup
@@ -2296,7 +2306,8 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
 static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
                                        double *x1, double *x2,  
                                        double *tipVector[4], 
-                                       unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling)
+                                       unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling,
+                                       double * lg4_weights)
 {
   double   sum = 0.0, term;        
   int     i, j, l;   
@@ -2312,33 +2323,47 @@ static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
           for(j = 0, term = 0.0; j < 4; j++)
             {
               double *d = &diagptable[j * 20];
+
+              __m128d
+              	  t = _mm_setzero_pd(),
+              	  w = _mm_set1_pd(lg4_weights[j]);
+
               left = &(tipVector[j][20 * tipX1[i]]);
               right = &(x2[80 * i + 20 * j]);
               for(l = 0; l < 20; l+=2)
                 {
                   __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
-                  tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));                
-                }                               
+                  t = _mm_add_pd(t, _mm_mul_pd(mul, _mm_load_pd(&d[l])));
+                }
+              tv = _mm_add_pd(tv, _mm_mul_pd(t, w));
             }
+
           tv = _mm_hadd_pd(tv, tv);
           _mm_storel_pd(&term, tv);
           
+
 #else                             
           for(j = 0, term = 0.0; j < 4; j++)
             {
+        	  double t = 0.0;
+
               left = &(tipVector[j][20 * tipX1[i]]);
               right = &(x2[80 * i + 20 * j]);
+
               for(l = 0; l < 20; l++)
-                term += left[l] * right[l] * diagptable[j * 20 + l];          
+                t += left[l] * right[l] * diagptable[j * 20 + l];
+
+              term += lg4_weights[j] * t;
             }     
 #endif
           
           if(fastScaling)
-            term = log(0.25 * fabs(term));
+            term = log(fabs(term));
           else
-            term = log(0.25 * fabs(term)) + (ex2[i] * log(PLL_MINLIKELIHOOD));     
-          
+            term = log(fabs(term)) + (ex2[i] * log(PLL_MINLIKELIHOOD));
+
           sum += wptr[i] * term;
+
         }               
     }              
   else
@@ -2351,40 +2376,51 @@ static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
           for(j = 0, term = 0.0; j < 4; j++)
             {
               double *d = &diagptable[j * 20];
+
+              __m128d
+              t = _mm_setzero_pd(),
+              w = _mm_set1_pd(lg4_weights[j]);
+
               left  = &(x1[80 * i + 20 * j]);
               right = &(x2[80 * i + 20 * j]);
               
               for(l = 0; l < 20; l+=2)
                 {
                   __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
-                  tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));                
-                }                               
+                  t = _mm_add_pd(t, _mm_mul_pd(mul, _mm_load_pd(&d[l])));
+                }
+              tv = _mm_add_pd(tv, _mm_mul_pd(t, w));
             }
           tv = _mm_hadd_pd(tv, tv);
           _mm_storel_pd(&term, tv);       
 #else
           for(j = 0, term = 0.0; j < 4; j++)
             {
+        	  double t = 0.0;
+
               left  = &(x1[80 * i + 20 * j]);
               right = &(x2[80 * i + 20 * j]);       
               
               for(l = 0; l < 20; l++)
-                term += left[l] * right[l] * diagptable[j * 20 + l];    
+                t += left[l] * right[l] * diagptable[j * 20 + l];
+
+              term += lg4_weights[j] * t;
             }
 #endif
           
           if(fastScaling)
-            term = log(0.25 * fabs(term));
+            term = log(fabs(term));
           else
-            term = log(0.25 * fabs(term)) + ((ex1[i] + ex2[i])*log(PLL_MINLIKELIHOOD));
+            term = log(fabs(term)) + ((ex1[i] + ex2[i])*log(PLL_MINLIKELIHOOD));
           
           sum += wptr[i] * term;
         }         
     }
-       
+
   return  sum;
 }
 
+#if (defined(__SSE3) || defined(__AVX))
 /** @ingroup evaluateLikelihoodGroup
     @brief Evaluation of log likelihood of a tree using the \b GAMMA model of rate heterogeneity 
     and the memory saving technique (Optimized SSE3 version for AA data)

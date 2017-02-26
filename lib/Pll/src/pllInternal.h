@@ -105,6 +105,7 @@ extern void newviewPartitionGeneric (pllInstance *tr, nodeptr p, int model);
 extern double evaluateGenericVector (pllInstance *tr, nodeptr p);
 extern void categorizeGeneric (pllInstance *tr, nodeptr p);
 extern double makenewzPartitionGeneric(pllInstance *tr, nodeptr p, nodeptr q, double z0, int maxiter, int model);
+extern void scaleLG4X_EIGN(pllInstance *tr, partitionList * pr, int model);
 extern boolean isTip(int number, int maxTips);
 
 /* recom functions */
@@ -163,13 +164,16 @@ linkageList* initLinkageList(int *linkList, partitionList *pr);
 #define PLL_THREAD_INIT_PARTITION           7
 #define PLL_THREAD_OPT_ALPHA                8
 #define PLL_THREAD_OPT_RATE                 9
-#define PLL_THREAD_COPY_ALPHA               10
-#define PLL_THREAD_COPY_RATES               11
-#define PLL_THREAD_PER_SITE_LIKELIHOODS     12
-#define PLL_THREAD_NEWVIEW_ANCESTRAL        13
-#define PLL_THREAD_GATHER_ANCESTRAL         14
-#define PLL_THREAD_EXIT_GRACEFULLY          15
-#define PLL_THREAD_EVALUATE_PER_SITE_LIKES  16
+#define PLL_THREAD_OPT_LG4X_RATE            10
+#define PLL_THREAD_COPY_ALPHA               11
+#define PLL_THREAD_COPY_RATES               12
+#define PLL_THREAD_COPY_LG4X_RATES          13
+#define PLL_THREAD_COPY_LG4X_EIGN           14
+#define PLL_THREAD_PER_SITE_LIKELIHOODS     15
+#define PLL_THREAD_NEWVIEW_ANCESTRAL        16
+#define PLL_THREAD_GATHER_ANCESTRAL         17
+#define PLL_THREAD_EXIT_GRACEFULLY          18
+#define PLL_THREAD_EVALUATE_PER_SITE_LIKES  19
 
 
 typedef struct

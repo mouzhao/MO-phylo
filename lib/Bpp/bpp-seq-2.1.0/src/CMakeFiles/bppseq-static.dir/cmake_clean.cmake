@@ -82,6 +82,7 @@ FILE(REMOVE_RECURSE
   "CMakeFiles/bppseq-static.dir/Bpp/Seq/Io/BppOAlphabetIndex1Format.cpp.o"
   "CMakeFiles/bppseq-static.dir/Bpp/Seq/Io/BppOAlphabetIndex2Format.cpp.o"
   "CMakeFiles/bppseq-static.dir/Bpp/Seq/App/SequenceApplicationTools.cpp.o"
+  "libbpp-seq.pdb"
   "libbpp-seq.a"
 )
 

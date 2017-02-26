@@ -140,6 +140,7 @@ FILE(REMOVE_RECURSE
   "CMakeFiles/bppphyl-shared.dir/Bpp/Phyl/TreeExceptions.cpp.o"
   "CMakeFiles/bppphyl-shared.dir/Bpp/Phyl/TreeTemplateTools.cpp.o"
   "CMakeFiles/bppphyl-shared.dir/Bpp/Phyl/TreeTools.cpp.o"
+  "libbpp-phyl.pdb"
   "libbpp-phyl.so"
   "libbpp-phyl.so.9.1.3"
   "libbpp-phyl.so.9"

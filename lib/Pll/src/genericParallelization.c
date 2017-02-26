@@ -990,6 +990,93 @@ static void broadCastAlpha(partitionList *localPr, partitionList *pr)
   SEND_BUF(bufDbl, bufSize, MPI_BYTE);  
 }
 
+/** @brief broadcast new LG4X weights
+    @param localTree local library instance
+    @param tr library instance
+    @param tid worker id
+ */
+static void broadCastLg4xWeights(partitionList *localPr, partitionList *pr)
+{
+  int  i,
+    model;
+
+#ifdef _FINE_GRAIN_MPI
+    int bufSize = localPr->numberOfPartitions * 4 * sizeof(double);
+  char bufDbl[bufSize];
+  char *bufPtrDbl = bufDbl;
+#endif
+
+  RECV_BUF(bufDbl, bufSize, MPI_BYTE);
+
+  for(model = 0; model < localPr->numberOfPartitions; model++)
+    for(i = 0; i < 4; ++i)
+      ASSIGN_BUF_DBL(localPr->partitionData[model]->lg4x_weights[i], pr->partitionData[model]->lg4x_weights[i]);
+
+  SEND_BUF(bufDbl, bufSize, MPI_BYTE);
+}
+
+static void copyLG4(partitionList *localPr, partitionList *pr)
+{
+    int model, i, k;
+
+    /* determine size of buffer needed first */
+    int bufSize = 0;
+
+#ifdef _FINE_GRAIN_MPI
+    for(model = 0; model < localPr->numberOfPartitions; ++model )
+      {
+        const partitionLengths *pl = getPartitionLengths(pr->partitionData[model]);
+        bufSize += 4*(2*pl->eignLength + pl->evLength + pl->eiLength + pl->tipVectorLength + pl->substRatesLength + pl->frequenciesLength) * sizeof(double) ;
+      }
+#endif
+
+    char
+      bufDbl[bufSize];
+    char *bufPtrDbl = bufDbl;
+
+    RECV_BUF(bufDbl, bufSize, MPI_BYTE);
+
+    for (model = 0; model < localPr->numberOfPartitions; model++)
+    {
+        pInfo * localInfo = localPr->partitionData[model];
+        pInfo * info = pr->partitionData[model];
+
+        if (info->protModels == PLL_LG4M || info->protModels == PLL_LG4X)
+        {
+            for (k = 0; k < 4; k++)
+            {
+                const partitionLengths *pl = getPartitionLengths(pr->partitionData[model]);
+
+                for (i = 0; i < pl->eignLength; ++i)
+                    ASSIGN_BUF_DBL(
+                            localPr->partitionData[model]->EIGN_LG4[k][i],
+                            pr->partitionData[model]->EIGN_LG4[k][i]);
+                for (i = 0; i < pl->eignLength; ++i)
+                    ASSIGN_BUF_DBL (localPr->partitionData[model]->rawEIGN_LG4[k][i],
+                                pr->partitionData[model]->rawEIGN_LG4[k][i]);
+                for (i = 0; i < pl->evLength; ++i)
+                    ASSIGN_BUF_DBL(localPr->partitionData[model]->EV_LG4[k][i],
+                            pr->partitionData[model]->EV_LG4[k][i]);
+                for (i = 0; i < pl->eiLength; ++i)
+                    ASSIGN_BUF_DBL(localPr->partitionData[model]->EI_LG4[k][i],
+                            pr->partitionData[model]->EI_LG4[k][i]);
+                for (i = 0; i < pl->substRatesLength; ++i)
+                    ASSIGN_BUF_DBL(
+                            localPr->partitionData[model]->substRates_LG4[k][i],
+                            pr->partitionData[model]->substRates_LG4[k][i]);
+                for (i = 0; i < pl->frequenciesLength; ++i)
+                    ASSIGN_BUF_DBL(
+                            localPr->partitionData[model]->frequencies_LG4[k][i],
+                            pr->partitionData[model]->frequencies_LG4[k][i]);
+                for (i = 0; i < pl->tipVectorLength; ++i)
+                    ASSIGN_BUF_DBL(
+                            localPr->partitionData[model]->tipVector_LG4[k][i],
+                            pr->partitionData[model]->tipVector_LG4[k][i]);
+            }
+        }
+    }
+    SEND_BUF(bufDbl, bufSize, MPI_BYTE); /*  */
+}
 
 /** @brief Master broadcasts rates.
     
@@ -1003,21 +1090,18 @@ static void broadCastRates(partitionList *localPr, partitionList *pr)
     model;
 
   /* determine size of buffer needed first */
+  int bufSize = 0;
 #ifdef _FINE_GRAIN_MPI
-  int bufSize = 0; 
-
   for(model = 0; model < localPr->numberOfPartitions; ++model )
     {	  
       const partitionLengths *pl = getPartitionLengths(pr->partitionData[model]); /* this is constant, isnt it?  */
-      bufSize += (pl->eignLength + pl->evLength + pl->eiLength + pl->tipVectorLength) * sizeof(double) ; 
+      bufSize += (pl->eignLength + pl->evLength + pl->eiLength + pl->tipVectorLength) * sizeof(double) ;
     }
+#endif
 
   char
-    bufDbl[bufSize]; 
-  char *bufPtrDbl = bufDbl; 
-#endif      
- 
-  
+      bufDbl[bufSize];
+    char *bufPtrDbl = bufDbl;
 
   RECV_BUF(bufDbl, bufSize, MPI_BYTE);
   int i ; 
@@ -1036,9 +1120,9 @@ static void broadCastRates(partitionList *localPr, partitionList *pr)
 	ASSIGN_BUF_DBL(localPr->partitionData[model]->tipVector[i],   pr->partitionData[model]->tipVector[i]);
     }
   SEND_BUF(bufDbl, bufSize, MPI_BYTE); /*  */
+
+  copyLG4(localPr, pr);
 }
-
-
 
 /** @brief Evaluate the likelihood of this topology (PThreads/MPI implementation)
 
@@ -1256,6 +1340,10 @@ char* getJobName(int type)
       return "PLL_THREAD_COPY_ALPHA";
     case PLL_THREAD_COPY_RATES: 
       return "PLL_THREAD_COPY_RATES";
+    case PLL_THREAD_COPY_LG4X_RATES:
+      return "PLL_THREAD_COPY_LG4X_RATES";
+    case PLL_THREAD_COPY_LG4X_EIGN:
+      return "PLL_THREAD_COPY_LG4X_EIGN";
     case PLL_THREAD_PER_SITE_LIKELIHOODS: 
       return "PLL_THREAD_PER_SITE_LIKELIHOODS";
     case PLL_THREAD_NEWVIEW_ANCESTRAL: 
@@ -1269,7 +1357,6 @@ char* getJobName(int type)
     default: assert(0); 
     }
 }
-
 
 /**
    @brief Generic entry point for parallel regions (mostly broadcasts
@@ -1396,7 +1483,7 @@ static boolean execFunction(pllInstance *tr, pllInstance *localTree, partitionLi
       if(localTree->td[0].functionType == PLL_THREAD_OPT_ALPHA)
 	reduceEvaluateIterative(tr, localTree, localPr, tid, PLL_FALSE);
 
-      break;           
+      break;
     case PLL_THREAD_OPT_RATE:
     case PLL_THREAD_COPY_RATES:
 
@@ -1404,7 +1491,7 @@ static boolean execFunction(pllInstance *tr, pllInstance *localTree, partitionLi
 	 decomposition and the tipVector as well because of the special numerics in RAxML, the matrix of eigenvectors 
 	 is "rotated" into the tip lookup table.
 
-	 Hence if the sequantial part of the program that steers the Q matrix rate optimization has changed a rate we 
+	 Hence if the sequential part of the program that steers the Q matrix rate optimization has changed a rate we
 	 need to broadcast all eigenvectors, eigenvalues etc to each thread 
       */
 
@@ -1416,7 +1503,38 @@ static boolean execFunction(pllInstance *tr, pllInstance *localTree, partitionLi
       if(localTree->td[0].functionType == PLL_THREAD_OPT_RATE)
 	reduceEvaluateIterative(tr, localTree, localPr, tid, PLL_FALSE);
 
-      break;                       
+      break;
+    case PLL_THREAD_COPY_LG4X_RATES:
+
+        broadCastLg4xWeights(localPr, pr);
+        broadCastAlpha(localPr, pr);
+
+        assert(localPr->partitionData[0]->lg4x_weights[0] == pr->partitionData[0]->lg4x_weights[0]);
+
+        break;
+    case PLL_THREAD_OPT_LG4X_RATE:
+
+        broadCastLg4xWeights(localPr, pr);
+        broadCastAlpha(localPr, pr);
+
+        assert(localPr->partitionData[0]->lg4x_weights[0] == pr->partitionData[0]->lg4x_weights[0]);
+
+        /* compute the likelihood, note that this is always a full tree traversal ! */
+        reduceEvaluateIterative(tr, localTree, localPr, tid, PLL_FALSE);
+
+        break;
+    case PLL_THREAD_COPY_LG4X_EIGN:
+         if(tid > 0)
+          {
+            for(model = 0; model < localPr->numberOfPartitions; model++)
+              {
+                memcpy(localPr->partitionData[model]->EIGN_LG4[0],    pr->partitionData[model]->EIGN_LG4[0],    sizeof(double) * 19);
+                memcpy(localPr->partitionData[model]->EIGN_LG4[1],    pr->partitionData[model]->EIGN_LG4[1],    sizeof(double) * 19);
+                memcpy(localPr->partitionData[model]->EIGN_LG4[2],    pr->partitionData[model]->EIGN_LG4[2],    sizeof(double) * 19);
+                memcpy(localPr->partitionData[model]->EIGN_LG4[3],    pr->partitionData[model]->EIGN_LG4[3],    sizeof(double) * 19);
+              }
+          }
+         break;
     case PLL_THREAD_COPY_INIT_MODEL:
       {
 
@@ -1425,6 +1543,7 @@ static boolean execFunction(pllInstance *tr, pllInstance *localTree, partitionLi
 
 	broadCastRates(localPr, pr);
 	broadCastAlpha(localPr, pr); /* isnt that only executed when we are on gamma?  */
+	broadCastLg4xWeights(localPr, pr);
 
 	/*
 	  copy initial model parameters, the Q matrix and alpha are initially, when we start our likelihood search 
@@ -1435,7 +1554,7 @@ static boolean execFunction(pllInstance *tr, pllInstance *localTree, partitionLi
 
 
 	if( localTree->rateHetModel == PLL_CAT) /* TRICKY originally this should only be executed by workers  */
-	  { 	    
+	  {
 #ifdef _FINE_GRAIN_MPI
 	    int bufSize = 2 * localTree->originalCrunchedLength * sizeof(double); 
 	    char bufDbl[bufSize], 
@@ -1749,7 +1868,8 @@ void pllMasterPostBarrier(pllInstance *tr, partitionList *pr, int jobType)
     {
     case PLL_THREAD_EVALUATE: 
     case PLL_THREAD_OPT_RATE: 
-    case PLL_THREAD_OPT_ALPHA: 
+    case PLL_THREAD_OPT_ALPHA:
+    case PLL_THREAD_OPT_LG4X_RATE:
     case PLL_THREAD_EVALUATE_PER_SITE_LIKES: 
       {
 #ifdef _REPRODUCIBLE_MPI_OR_PTHREADS
